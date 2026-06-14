@@ -312,7 +312,7 @@ if doc_seleccionado and concurso_seleccionado:
                     INSTRUCCIONES ESTRICTAS:
                     1. Genera un test con preguntas de opción múltiple (mínimo 3, máximo 5) basadas EXCLUSIVAMENTE en este texto.
                     2. Asegúrate de que haya una única opción correcta por pregunta.
-                    3. La justificación debe ser corta y directa (MÁXIMO 2 oraciones). ¡NUNCA repitas ni copies fragmentos largos del texto original!
+                    3. La justificación debe ser detallada, pedagógica y generosa. Explica claramente por qué la opción es correcta y aporta contexto del texto para que el usuario pueda aprender profundamente sobre el tema. No te limites en la explicación, pero enfócate en enseñar.
                     4. Devuelve ÚNICAMENTE la estructura JSON solicitada, sin preámbulos ni texto adicional.
                     """
                     
@@ -322,8 +322,8 @@ if doc_seleccionado and concurso_seleccionado:
                             generation_config=genai.GenerationConfig(
                                 response_mime_type="application/json",
                                 response_schema=TestResult,
-                                temperature=0.2,
-                                max_output_tokens=2000 # Prevenir respuestas de cientos de kilobytes que se corten a la mitad
+                                temperature=0.3,
+                                max_output_tokens=8192 # Permitir explicaciones detalladas sin que se corte el JSON
                             )
                         )
                         st.session_state.test_actual = json.loads(respuesta.text)
