@@ -71,6 +71,7 @@ def guardar_concursos(lista_concursos):
             path='concursos.json',
             file_options={"content-type": "application/json"}
         )
+        return True
     except Exception:
         # Si falla porque no existe, se sube por primera vez
         try:
@@ -79,14 +80,17 @@ def guardar_concursos(lista_concursos):
                 path='concursos.json',
                 file_options={"content-type": "application/json"}
             )
+            return True
         except Exception as e:
-            st.error(f"Error al guardar lista de concursos: {e}")
+            st.error(f"Error de permisos en Supabase al guardar: {e}")
+            return False
 
 def crear_concurso(nombre):
     concursos = obtener_concursos()
     if nombre not in concursos:
         concursos.append(nombre)
-        guardar_concursos(concursos)
+        return guardar_concursos(concursos)
+    return True
 
 def eliminar_concurso(concurso):
     # Primero eliminamos todos los archivos dentro de la carpeta del concurso
@@ -125,9 +129,10 @@ def subir_documento(file, concurso):
             path=ruta,
             file_options={"content-type": file.type}
         )
-        st.sidebar.success(f"Archivo guardado en el concurso '{concurso}'.")
+        return True
     except Exception as e:
         st.sidebar.error(f"Error al subir el archivo (quizás ya existe): {e}")
+        return False
 
 def eliminar_documento(concurso, doc_name):
     ruta = f"{concurso}/{doc_name}"
@@ -174,8 +179,8 @@ with st.sidebar:
         nuevo_concurso = st.text_input("Nombre del Concurso")
         if st.button("Guardar concurso"):
             if nuevo_concurso.strip():
-                crear_concurso(nuevo_concurso.strip())
-                st.rerun()
+                if crear_concurso(nuevo_concurso.strip()):
+                    st.rerun()
             else:
                 st.warning("Escribe un nombre válido.")
     
@@ -190,13 +195,20 @@ with st.sidebar:
         uploaded_file = st.file_uploader("Sube un temario (PDF/TXT)", type=["pdf", "txt"], key="uploader")
         if uploaded_file is not None:
             if st.button("Guardar documento"):
-                subir_documento(uploaded_file, concurso_seleccionado)
-                st.rerun()
+                if subir_documento(uploaded_file, concurso_seleccionado):
+                    st.success("✅ Documento guardado correctamente. Refrescando...")
+                    # Pequeña pausa para que el usuario vea el mensaje
+                    import time
+                    time.sleep(1.5)
+                    st.rerun()
         
         # Listado de archivos del concurso
         documentos = listar_documentos(concurso_seleccionado)
+        
+        # --- CONTADOR DE FUENTES ---
+        st.write(f"**Total de fuentes en este concurso: {len(documentos)}**")
+        
         if documentos:
-            st.write("**Documentos guardados:**")
             for doc in documentos:
                 col1, col2 = st.columns([4, 1])
                 col1.write(f"📄 {doc}")
@@ -206,9 +218,10 @@ with st.sidebar:
             
             # Seleccionar documento para estudiar
             st.divider()
-            doc_seleccionado = st.selectbox("Selecciona el documento para estudiar:", documentos)
+            st.write("### 👇 Comienza a estudiar aquí")
+            doc_seleccionado = st.selectbox("Selecciona el documento con el que vas a generar el test:", documentos)
         else:
-            st.info("No hay documentos en este concurso. Sube el primero.")
+            st.info("No hay documentos en este concurso. Sube el primero para poder generar un test.")
             
         # Opción Peligrosa: Eliminar todo el concurso
         st.divider()
