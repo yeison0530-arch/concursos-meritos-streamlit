@@ -312,8 +312,9 @@ if doc_seleccionado and concurso_seleccionado:
                     INSTRUCCIONES ESTRICTAS:
                     1. Genera un test con preguntas de opción múltiple (mínimo 3, máximo 5) basadas EXCLUSIVAMENTE en este texto.
                     2. Asegúrate de que haya una única opción correcta por pregunta.
-                    3. La justificación debe ser detallada, pedagógica y generosa. Explica claramente por qué la opción es correcta y aporta contexto del texto para que el usuario pueda aprender profundamente sobre el tema. No te limites en la explicación, pero enfócate en enseñar.
-                    4. Devuelve ÚNICAMENTE la estructura JSON solicitada, sin preámbulos ni texto adicional.
+                    3. La justificación debe ser detallada, pedagógica y generosa. Explica claramente por qué la opción es correcta y aporta contexto para que el usuario aprenda.
+                    4. REGLA CRÍTICA DE SEGURIDAD: PARAFRASEA toda la justificación usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar o citar fragmentos textuales exactos del texto proporcionado, debes explicar el contenido de forma original.
+                    5. Devuelve ÚNICAMENTE la estructura JSON solicitada, sin preámbulos ni texto adicional.
                     """
                     
                     try:
