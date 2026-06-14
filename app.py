@@ -150,18 +150,33 @@ def eliminar_documento(concurso, doc_name):
     except Exception as e:
         st.sidebar.error(f"Error al eliminar el archivo: {e}")
 
+@st.cache_data(show_spinner=False)
+def descargar_documento_cache(ruta):
+    return supabase.storage.from_(BUCKET_NAME).download(ruta)
+
 def extraer_texto_doc(concurso, doc_name):
-    """Descarga el documento a la memoria y extrae su texto."""
+    """Descarga el documento a la memoria y extrae su texto con barra de progreso."""
     ruta = f"{safe_name(concurso)}/{doc_name}"
     try:
-        res = supabase.storage.from_(BUCKET_NAME).download(ruta)
+        res = descargar_documento_cache(ruta)
         if doc_name.endswith('.pdf'):
             pdf_reader = PyPDF2.PdfReader(io.BytesIO(res))
             texto = ""
-            for page in pdf_reader.pages:
+            total_pages = len(pdf_reader.pages)
+            
+            # Barra de progreso visual
+            progreso_lectura = st.progress(0.0, text=f"Preparando lectura de {total_pages} páginas...")
+            
+            for i, page in enumerate(pdf_reader.pages):
                 extracted = page.extract_text()
                 if extracted:
                     texto += extracted + "\n"
+                
+                # Actualizar barra
+                porcentaje = (i + 1) / total_pages
+                progreso_lectura.progress(porcentaje, text=f"Extrayendo texto del PDF... Página {i+1} de {total_pages}")
+            
+            progreso_lectura.empty() # Limpiar la barra al terminar
             return texto
         elif doc_name.endswith('.txt'):
             return res.decode('utf-8')
@@ -270,7 +285,8 @@ if doc_seleccionado and concurso_seleccionado:
     porcentaje_estudio = st.slider("¿Qué porcentaje de la fuente deseas abarcar en el próximo test?", min_value=5, max_value=50, value=10, step=5)
     
     if st.button("Generar nuevo test", type="primary"):
-        with st.spinner("Leyendo la fuente y generando preguntas con Inteligencia Artificial..."):
+        with st.status("Preparando tu test...", expanded=True) as status:
+            st.write("📖 Extrayendo texto del documento...")
             texto_completo = extraer_texto_doc(concurso_seleccionado, doc_seleccionado)
             if texto_completo:
                 total_chars = len(texto_completo)
@@ -281,8 +297,10 @@ if doc_seleccionado and concurso_seleccionado:
                 texto_seccion = texto_completo[inicio_idx:fin_idx]
                 
                 if not texto_seccion.strip():
+                    status.update(label="Error de progreso", state="error", expanded=True)
                     st.warning("Ya has completado este documento o la sección no contiene texto. Reinicia tu progreso para empezar de nuevo.")
                 else:
+                    st.write("🤖 Analizando el texto y estructurando preguntas con IA...")
                     prompt = f"""
                     Actúa como un Desarrollador Senior y experto en la creación de exámenes para concursos de méritos públicos.
                     A continuación te proporciono un extracto del temario:
@@ -310,8 +328,11 @@ if doc_seleccionado and concurso_seleccionado:
                         
                         nuevo_progreso = min(progreso_actual + porcentaje_estudio, 100.0)
                         st.session_state.progreso_por_doc[id_progreso] = nuevo_progreso
+                        
+                        status.update(label="¡Test generado con éxito!", state="complete", expanded=False)
                         st.rerun()
                     except Exception as e:
+                        status.update(label="Error en la Inteligencia Artificial", state="error", expanded=True)
                         st.error(f"Error al generar el test con la API de Gemini: {e}")
 
     if st.session_state.test_actual:
