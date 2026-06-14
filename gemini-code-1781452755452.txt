@@ -1,0 +1,44 @@
+Actúa como un Desarrollador Senior en Python y Arquitecto de Software Cloud. Necesito crear una aplicación web en Streamlit para estudiar para concursos de méritos públicos. La app debe usar la API de Google Gemini (gemini-1.5-flash) para generar preguntas y Supabase para el almacenamiento persistente en la nube.
+
+Aquí están los requerimientos técnicos y funcionales:
+
+1. Configuración y Credenciales (Secrets):
+- Usa `st.secrets` para cargar de manera segura: `GEMINI_API_KEY`, `SUPABASE_URL` y `SUPABASE_KEY`.
+- Conecta la aplicación a Supabase usando la librería `supabase-py`.
+
+2. Gestión de Archivos en Supabase Storage:
+- El sistema debe conectarse a un bucket público de Supabase llamado 'documentos_concursos'.
+- En la barra lateral (sidebar), implementa un `st.file_uploader` para subir archivos PDF o TXT.
+- Al subir un archivo, el código debe guardarlo directamente en el bucket 'documentos_concursos' de Supabase usando la API de la librería.
+- Muestra en la interfaz una lista de los documentos que ya están subidos al bucket, permitiendo al usuario seleccionarlos para su sesión de estudio.
+
+3. Dinámica de Estudio y Cobertura (Session State):
+- Implementa un slider o selector para que el usuario elija qué porcentaje del temario/fuentes quiere abarcar en el próximo test (ej. 10%, 20%).
+- La app debe descargar temporalmente en memoria el texto de los PDFs seleccionados desde Supabase.
+- Usa `st.session_state` para mantener el progreso del usuario y registrar qué partes del texto ya se han evaluado, indicando en la interfaz el porcentaje acumulado (hasta llegar al 100%).
+
+4. Generación Dinámica del Test (Google Gemini API):
+- Envía a Gemini el texto extraído y las instrucciones del tipo de concurso.
+- Obliga a la API a responder usando "Structured Outputs" (JSON Schema) con esta estructura exacta:
+  {
+    "preguntas": [
+      {
+        "id": 1, 
+        "enunciado": "...", 
+        "opciones": ["A) ...", "B) ...", "C) ...", "D) ..."], 
+        "correcta": 0, 
+        "justificacion": "..."
+      }
+    ]
+  }
+
+5. Interfaz del Cuestionario y Feedback Instantáneo:
+- Muestra las preguntas generadas.
+- Al hacer clic en una opción de respuesta, evalúa de manera INMEDIATA (usando st.session_state para no recargar toda la página) si es correcta (verde) o incorrecta (roja) y muestra la "justificación".
+- Botón "Repetir test": Limpia las respuestas pero mantiene las mismas preguntas.
+- Botón "Generar nuevo test": Avanza en la lectura de la fuente y genera preguntas nuevas.
+
+6. Panel de Estadísticas:
+- Muestra métricas en tiempo real: Total de preguntas respondidas, Porcentaje de aciertos y Porcentaje de desaciertos.
+
+Escribe el código completo en un solo archivo (app.py), limpio, comentado en español y listo para ser desplegado en Streamlit Community Cloud. Incluye el manejo de errores por si falla la conexión a Supabase.
