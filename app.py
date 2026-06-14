@@ -313,8 +313,9 @@ if doc_seleccionado and concurso_seleccionado:
                     1. Genera un test con preguntas de opción múltiple (mínimo 3, máximo 5) basadas EXCLUSIVAMENTE en este texto.
                     2. Asegúrate de que haya una única opción correcta por pregunta.
                     3. La justificación debe ser detallada, pedagógica y generosa. Explica claramente por qué la opción es correcta y aporta contexto para que el usuario aprenda.
-                    4. REGLA CRÍTICA DE SEGURIDAD: PARAFRASEA toda la justificación usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar o citar fragmentos textuales exactos del texto proporcionado, debes explicar el contenido de forma original.
-                    5. Devuelve ÚNICAMENTE la estructura JSON solicitada, sin preámbulos ni texto adicional.
+                    4. CITAS OBLIGATORIAS: Fundamenta tu respuesta citando la fuente exacta. Si es una Ley o Decreto, menciona expresamente el número del artículo, inciso, numeral o literal. Si es jurisprudencia, incluye fecha, sección/sala, radicado y magistrado ponente (si dichos datos están en el texto).
+                    5. REGLA CRÍTICA DE SEGURIDAD: Aunque debes mencionar los números de artículos o datos de la fuente, el CONTENIDO de tu explicación debe ser 100% PARAFRASEADO usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar textualmente fragmentos del documento original para evitar bloqueos de copyright.
+                    6. Devuelve ÚNICAMENTE la estructura JSON solicitada, sin preámbulos ni texto adicional.
                     """
                     
                     try:
