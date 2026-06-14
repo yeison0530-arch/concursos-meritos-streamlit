@@ -2,6 +2,8 @@ import streamlit as st
 import io
 import json
 import PyPDF2
+import unicodedata
+import re
 from supabase import create_client, Client
 import google.generativeai as genai
 import typing_extensions as typing
@@ -92,11 +94,17 @@ def crear_concurso(nombre):
         return guardar_concursos(concursos)
     return True
 
+def safe_name(name):
+    """Limpia tildes, espacios y caracteres especiales para usarlos en rutas de Supabase."""
+    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
+    name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', name)
+    return name
+
 def eliminar_concurso(concurso):
     # Primero eliminamos todos los archivos dentro de la carpeta del concurso
     docs = listar_documentos(concurso)
     if docs:
-        rutas = [f"{concurso}/{d}" for d in docs]
+        rutas = [f"{safe_name(concurso)}/{d}" for d in docs]
         try:
             supabase.storage.from_(BUCKET_NAME).remove(rutas)
         except Exception as e:
@@ -111,7 +119,7 @@ def eliminar_concurso(concurso):
 def listar_documentos(concurso):
     """Obtiene la lista de documentos en la carpeta del concurso."""
     try:
-        res = supabase.storage.from_(BUCKET_NAME).list(path=concurso)
+        res = supabase.storage.from_(BUCKET_NAME).list(path=safe_name(concurso))
         # Filtramos por archivos válidos
         archivos = [f['name'] for f in res if f['name'].endswith(('.pdf', '.txt'))]
         return archivos
@@ -123,7 +131,7 @@ def subir_documento(file, concurso):
     """Sube un archivo a la carpeta del concurso en Supabase."""
     try:
         file_bytes = file.getvalue()
-        ruta = f"{concurso}/{file.name}"
+        ruta = f"{safe_name(concurso)}/{safe_name(file.name)}"
         res = supabase.storage.from_(BUCKET_NAME).upload(
             file=file_bytes,
             path=ruta,
@@ -135,7 +143,7 @@ def subir_documento(file, concurso):
         return False
 
 def eliminar_documento(concurso, doc_name):
-    ruta = f"{concurso}/{doc_name}"
+    ruta = f"{safe_name(concurso)}/{doc_name}"
     try:
         supabase.storage.from_(BUCKET_NAME).remove([ruta])
         st.sidebar.warning(f"Se ha eliminado el archivo '{doc_name}'.")
@@ -144,7 +152,7 @@ def eliminar_documento(concurso, doc_name):
 
 def extraer_texto_doc(concurso, doc_name):
     """Descarga el documento a la memoria y extrae su texto."""
-    ruta = f"{concurso}/{doc_name}"
+    ruta = f"{safe_name(concurso)}/{doc_name}"
     try:
         res = supabase.storage.from_(BUCKET_NAME).download(ruta)
         if doc_name.endswith('.pdf'):
