@@ -302,16 +302,18 @@ if doc_seleccionado and concurso_seleccionado:
                 else:
                     st.write("🤖 Analizando el texto y estructurando preguntas con IA...")
                     prompt = f"""
-                    Actúa como un Desarrollador Senior y experto en la creación de exámenes para concursos de méritos públicos.
+                    Actúa como un experto en la creación de exámenes para concursos de méritos públicos.
                     A continuación te proporciono un extracto del temario:
                     
                     --- INICIO DEL EXTRACTO ---
                     {texto_seccion}
                     --- FIN DEL EXTRACTO ---
                     
-                    Genera un test con preguntas de opción múltiple (mínimo 3, máximo 5) basadas EXCLUSIVAMENTE en este texto.
-                    Asegúrate de que haya una única opción correcta por pregunta.
-                    La justificación debe explicar de forma clara por qué la opción correcta lo es, basándose en la información del texto.
+                    INSTRUCCIONES ESTRICTAS:
+                    1. Genera un test con preguntas de opción múltiple (mínimo 3, máximo 5) basadas EXCLUSIVAMENTE en este texto.
+                    2. Asegúrate de que haya una única opción correcta por pregunta.
+                    3. La justificación debe ser corta y directa (MÁXIMO 2 oraciones). ¡NUNCA repitas ni copies fragmentos largos del texto original!
+                    4. Devuelve ÚNICAMENTE la estructura JSON solicitada, sin preámbulos ni texto adicional.
                     """
                     
                     try:
@@ -320,7 +322,8 @@ if doc_seleccionado and concurso_seleccionado:
                             generation_config=genai.GenerationConfig(
                                 response_mime_type="application/json",
                                 response_schema=TestResult,
-                                temperature=0.2
+                                temperature=0.2,
+                                max_output_tokens=2000 # Prevenir respuestas de cientos de kilobytes que se corten a la mitad
                             )
                         )
                         st.session_state.test_actual = json.loads(respuesta.text)
