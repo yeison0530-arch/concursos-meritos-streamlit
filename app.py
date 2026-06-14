@@ -49,7 +49,7 @@ BUCKET_NAME = 'documentos_concursos'
 # --- CONFIGURACIÓN DE GEMINI ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    model = genai.GenerativeModel("gemini-flash-latest")
 except Exception as e:
     st.error(f"Error al configurar la API de Gemini: {e}")
     st.stop()
