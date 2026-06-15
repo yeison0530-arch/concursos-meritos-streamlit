@@ -408,17 +408,21 @@ if concurso_main and doc_main and sesion_main:
         preguntas = st.session_state.test_actual.get("preguntas", [])
         
         for p in preguntas:
-            st.markdown(f"**Pregunta {p['id']}:** {p['enunciado']}")
-            opciones = p['opciones']
-            correcta_idx = p['correcta']
-            respondido = str(p['id']) in st.session_state.respuestas_usuario
+            p_id = p.get('id', '?')
+            enunciado = p.get('enunciado', p.get('pregunta', 'Error: La IA no estructuró bien la pregunta.'))
+            opciones = p.get('opciones', [])
+            correcta_idx = p.get('correcta', 0)
+            justificacion = p.get('justificacion', 'Sin justificación.')
+            
+            st.markdown(f"**Pregunta {p_id}:** {enunciado}")
+            respondido = str(p_id) in st.session_state.respuestas_usuario
             
             for i, opcion in enumerate(opciones):
-                key = f"btn_{p['id']}_{i}"
+                key = f"btn_{p_id}_{i}"
                 
                 if not respondido:
                     if st.button(opcion, key=key):
-                        st.session_state.respuestas_usuario[str(p['id'])] = i
+                        st.session_state.respuestas_usuario[str(p_id)] = i
                         st.session_state.estadisticas['total'] += 1
                         if i == correcta_idx:
                             st.session_state.estadisticas['correctas'] += 1
@@ -426,7 +430,7 @@ if concurso_main and doc_main and sesion_main:
                             st.session_state.estadisticas['incorrectas'] += 1
                         st.rerun()
                 else:
-                    respuesta_dada = st.session_state.respuestas_usuario[str(p['id'])]
+                    respuesta_dada = st.session_state.respuestas_usuario[str(p_id)]
                     if i == correcta_idx:
                         st.success(f"**✔️ {opcion}** (Respuesta Correcta)")
                     elif i == respuesta_dada and respuesta_dada != correcta_idx:
@@ -436,7 +440,7 @@ if concurso_main and doc_main and sesion_main:
             
             if respondido:
                 with st.expander("Ver Justificación", expanded=True):
-                    st.info(p['justificacion'])
+                    st.info(justificacion)
             st.write("---")
             
         if st.button("Repetir el mismo test actual", help="Borra las respuestas y permite volver a intentar las mismas preguntas exactas."):
