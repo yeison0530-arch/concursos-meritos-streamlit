@@ -16,6 +16,8 @@ class Pregunta(typing.TypedDict):
     opciones: list[str]
     correcta: int
     justificacion: str
+    contexto_general: str
+    mapa_mental: str
 
 class TestResult(typing.TypedDict):
     preguntas: list[Pregunta]
@@ -368,10 +370,12 @@ if concurso_main and doc_main and sesion_main:
                         INSTRUCCIONES ESTRICTAS:
                         1. Genera un test con preguntas de opción múltiple (mínimo 3, máximo 5) basadas EXCLUSIVAMENTE en este texto.
                         2. Asegúrate de que haya una única opción correcta por pregunta.
-                        3. La justificación debe ser detallada, pedagógica y generosa. Explica claramente por qué la opción es correcta y aporta contexto para que el usuario aprenda.
-                        4. CITAS OBLIGATORIAS: Fundamenta tu respuesta citando la fuente exacta. Si es una Ley o Decreto, menciona expresamente el número del artículo, inciso, numeral o literal. Si es jurisprudencia, incluye fecha, sección/sala, radicado y magistrado ponente (si dichos datos están en el texto).
-                        5. REGLA CRÍTICA DE SEGURIDAD: Aunque debes mencionar los números de artículos o datos de la fuente, el CONTENIDO de tu explicación debe ser 100% PARAFRASEADO usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar textualmente fragmentos del documento original para evitar bloqueos de copyright.{instruccion_extra}
-                        6. Devuelve ÚNICAMENTE la estructura JSON solicitada, sin preámbulos ni texto adicional.
+                        3. La justificación debe ser detallada y clara sobre por qué la opción es correcta.
+                        4. Añade un "contexto_general" profundo sobre el tema general que aborda la respuesta para expandir el aprendizaje.
+                        5. Añade un "mapa_mental" en formato de viñetas (bullet points jerárquicos de Markdown usando -) partiendo del origen u origen conceptual del tema tocado en la pregunta.
+                        6. CITAS OBLIGATORIAS: Fundamenta tu respuesta citando la fuente exacta. Si es una Ley o Decreto, menciona expresamente el número del artículo, inciso, numeral o literal. Si es jurisprudencia, incluye fecha, sección/sala, radicado y magistrado ponente (si dichos datos están en el texto).
+                        7. REGLA CRÍTICA DE SEGURIDAD: Aunque debes mencionar los números de artículos o datos de la fuente, el CONTENIDO de tu explicación debe ser 100% PARAFRASEADO usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar textualmente fragmentos del documento original para evitar bloqueos de copyright.{instruccion_extra}
+                        8. Devuelve ÚNICAMENTE la estructura JSON solicitada.
                         """
                         
                         try:
@@ -413,6 +417,8 @@ if concurso_main and doc_main and sesion_main:
             opciones = p.get('opciones', [])
             correcta_idx = p.get('correcta', 0)
             justificacion = p.get('justificacion', 'Sin justificación.')
+            contexto = p.get('contexto_general', '')
+            mapa = p.get('mapa_mental', '')
             
             st.markdown(f"**Pregunta {p_id}:** {enunciado}")
             respondido = str(p_id) in st.session_state.respuestas_usuario
@@ -439,8 +445,13 @@ if concurso_main and doc_main and sesion_main:
                         st.markdown(f"⚪ {opcion}")
             
             if respondido:
-                with st.expander("Ver Justificación", expanded=True):
-                    st.info(justificacion)
+                with st.expander("💡 Ver Explicación Completa", expanded=True):
+                    st.info(f"**Justificación Específica:**\n\n{justificacion}")
+                    if contexto:
+                        st.success(f"**Contexto General:**\n\n{contexto}")
+                    if mapa:
+                        st.warning("**Mapa Mental Textual:**")
+                        st.markdown(mapa)
             st.write("---")
             
         if st.button("Repetir el mismo test actual", help="Borra las respuestas y permite volver a intentar las mismas preguntas exactas."):
