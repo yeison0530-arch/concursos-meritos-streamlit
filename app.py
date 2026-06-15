@@ -369,15 +369,13 @@ if concurso_main and doc_main and sesion_main:
                         {texto_seccion}
                         --- FIN DEL EXTRACTO ---
                         
-                        INSTRUCCIONES ESTRICTAS:
-                        1. Genera un test con EXACTAMENTE 3 preguntas de opción múltiple basadas EXCLUSIVAMENTE en este texto.
-                        2. Asegúrate de que haya una única opción correcta por pregunta.
-                        3. La justificación debe ser clara sobre por qué la opción es correcta.
-                        4. El "contexto_general" debe ser MUY BREVE y conciso.
-                        5. El "mapa_mental" es LO MÁS IMPORTANTE. Debe estar en formato de viñetas (bullet points jerárquicos de Markdown usando guiones) para esquematizar el tema partiendo del origen.
-                        6. CITAS OBLIGATORIAS: Fundamenta tu respuesta citando la fuente exacta (artículo, ley, jurisprudencia).
-                        7. REGLA CRÍTICA DE SEGURIDAD: El CONTENIDO de tu explicación debe ser 100% PARAFRASEADO usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar textualmente fragmentos del documento original para evitar bloqueos de copyright.{instruccion_extra}
-                        8. Asegúrate de incluir el "enunciado" de cada pregunta. Devuelve ÚNICAMENTE la estructura JSON solicitada.
+                        INSTRUCCIONES ESTRICTAS DE FORMATO (¡RESPETA LOS LÍMITES!):
+                        1. Genera EXACTAMENTE 3 preguntas basadas en este texto.
+                        2. La "justificacion" debe ser CLARA pero CORTA (Máximo 3 líneas). Menciona el artículo/ley específico.
+                        3. El "contexto_general" debe ser MUY BREVE (1 o 2 oraciones máximo).
+                        4. El "mapa_mental" debe tener MÁXIMO 5 VIÑETAS (bullet points con guiones). Sé muy esquemático y no escribas párrafos largos aquí.
+                        5. REGLA DE SEGURIDAD: 100% PARAFRASEADO. NO COPIES TEXTO LITERAL PARA EVITAR CORTES.
+                        6. Devuelve ÚNICAMENTE la estructura JSON.
                         """
                         
                         try:
@@ -386,11 +384,18 @@ if concurso_main and doc_main and sesion_main:
                                 generation_config=genai.GenerationConfig(
                                     response_mime_type="application/json",
                                     response_schema=TestResult,
-                                    temperature=0.3,
+                                    temperature=0.2,
                                     max_output_tokens=8192
                                 )
                             )
-                            st.session_state.test_actual = json.loads(respuesta.text)
+                            try:
+                                json_texto = respuesta.text
+                                st.session_state.test_actual = json.loads(json_texto)
+                            except Exception as parse_error:
+                                finish_reason = respuesta.candidates[0].finish_reason if respuesta.candidates else "Desconocida"
+                                long_texto = len(respuesta.text) if hasattr(respuesta, 'text') else 0
+                                raise Exception(f"Error parseando JSON. La respuesta se cortó en {long_texto} caracteres. Razón de parada de la IA: {finish_reason}. Detalle: {parse_error}")
+                            
                             st.session_state.respuestas_usuario = {}
                             
                             if not es_repaso:
@@ -406,7 +411,7 @@ if concurso_main and doc_main and sesion_main:
                             st.rerun()
                         except Exception as e:
                             status.update(label="Error en la Inteligencia Artificial", state="error", expanded=True)
-                            st.error(f"Error al generar el test con la API de Gemini: {e}")
+                            st.error(f"Error técnico de Gemini: {e}")
 
     if st.session_state.test_actual:
         st.subheader("📝 Cuestionario Actual")
