@@ -14,12 +14,11 @@ from pydantic import BaseModel, Field
 # --- TIPOS DE DATOS PARA GEMINI ---
 class Pregunta(BaseModel):
     id: int = Field(description="Número de la pregunta")
-    enunciado: str = Field(description="El texto de la pregunta a responder")
+    enunciado: str = Field(description="El texto principal de la pregunta a responder")
     opciones: list[str] = Field(description="Lista de 4 posibles opciones de respuesta")
     correcta: int = Field(description="Índice (0 a 3) de la respuesta correcta")
-    justificacion: str = Field(description="Justificación legal/técnica de la respuesta")
-    contexto_general: str = Field(description="Contexto amplio y pedagógico del tema general tocado en la pregunta")
-    mapa_mental: str = Field(description="Mapa mental estructurado usando viñetas anidadas de Markdown")
+    justificacion: str = Field(description="Justificación detallada y pedagógica de la respuesta")
+    mapa_mental: str = Field(description="Esquema visual usando flechas (-> o =>) y saltos de línea para estructurar el tema")
 
 class TestResult(BaseModel):
     preguntas: list[Pregunta] = Field(description="Lista de preguntas generadas (debe contener entre 3 y 5 preguntas)")
@@ -371,10 +370,10 @@ if concurso_main and doc_main and sesion_main:
                         
                         INSTRUCCIONES ESTRICTAS DE FORMATO:
                         1. Genera EXACTAMENTE 3 preguntas basadas en este texto.
-                        2. La "justificacion" debe ser detallada, generosa y muy pedagógica. Explica ampliamente por qué la opción es correcta y cita la fuente (ley, artículo, sentencia).
-                        3. El "contexto_general" debe ser breve y conciso.
-                        4. El "mapa_mental" es clave: debe ser un esquema estructurado en viñetas de Markdown (bullet points) que organice visualmente el tema de la pregunta partiendo de su origen conceptual.
-                        5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido (justificación, contexto, mapa) debe ser 100% PARAFRASEADO usando tus propias palabras. NO COPIES NINGÚN TEXTO LITERAL del documento, para evitar cortes por filtros de copyright.
+                        2. REGLA OBLIGATORIA: El JSON resultante DEBE contener la clave "enunciado" en cada pregunta.
+                        3. La "justificacion" debe ser detallada, generosa y muy pedagógica. Explica ampliamente por qué la opción es correcta y cita la fuente (ley, artículo, sentencia).
+                        4. El "mapa_mental" es una ayuda visual esquemática. Usa flechas descendentes o laterales (ejemplo: Concepto -> Característica -> Detalle). NO uses párrafos; usa exclusivamente saltos de línea y flechas para crear el esquema.
+                        5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido (justificación y mapa) debe ser 100% PARAFRASEADO usando tus propias palabras. NO COPIES NINGÚN TEXTO LITERAL del documento, para evitar cortes por filtros de copyright.
                         6. Devuelve ÚNICAMENTE la estructura JSON estricta.
                         """
                         
@@ -424,7 +423,6 @@ if concurso_main and doc_main and sesion_main:
             opciones = p.get('opciones', [])
             correcta_idx = p.get('correcta', 0)
             justificacion = p.get('justificacion', 'Sin justificación.')
-            contexto = p.get('contexto_general', '')
             mapa = p.get('mapa_mental', '')
             
             st.markdown(f"**Pregunta {p_id}:** {enunciado}")
@@ -453,12 +451,9 @@ if concurso_main and doc_main and sesion_main:
             
             if respondido:
                 with st.expander("💡 Ver Explicación Completa", expanded=True):
-                    st.info(f"**Justificación Específica:**\n\n{justificacion}")
-                    if contexto:
-                        st.success(f"**Contexto General:**\n\n{contexto}")
+                    st.info(f"**Justificación:**\n\n{justificacion}")
                     if mapa:
-                        st.warning("**Mapa Mental Textual:**")
-                        st.markdown(mapa)
+                        st.warning("**Esquema Mental Visual:**\n\n" + mapa.replace('\\n', '\n'))
             st.write("---")
             
         if st.button("Repetir el mismo test actual", help="Borra las respuestas y permite volver a intentar las mismas preguntas exactas."):
