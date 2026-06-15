@@ -369,13 +369,13 @@ if concurso_main and doc_main and sesion_main:
                         {texto_seccion}
                         --- FIN DEL EXTRACTO ---
                         
-                        INSTRUCCIONES ESTRICTAS DE FORMATO (¡RESPETA LOS LÍMITES!):
+                        INSTRUCCIONES ESTRICTAS DE FORMATO:
                         1. Genera EXACTAMENTE 3 preguntas basadas en este texto.
-                        2. La "justificacion" debe ser CLARA pero CORTA (Máximo 3 líneas). Menciona el artículo/ley específico.
-                        3. El "contexto_general" debe ser MUY BREVE (1 o 2 oraciones máximo).
-                        4. El "mapa_mental" debe tener MÁXIMO 5 VIÑETAS (bullet points con guiones). Sé muy esquemático y no escribas párrafos largos aquí.
-                        5. REGLA DE SEGURIDAD: 100% PARAFRASEADO. NO COPIES TEXTO LITERAL PARA EVITAR CORTES.
-                        6. Devuelve ÚNICAMENTE la estructura JSON.
+                        2. La "justificacion" debe ser detallada, generosa y muy pedagógica. Explica ampliamente por qué la opción es correcta y cita la fuente (ley, artículo, sentencia).
+                        3. El "contexto_general" debe ser breve y conciso.
+                        4. El "mapa_mental" es clave: debe ser un esquema estructurado en viñetas de Markdown (bullet points) que organice visualmente el tema de la pregunta partiendo de su origen conceptual.
+                        5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido (justificación, contexto, mapa) debe ser 100% PARAFRASEADO usando tus propias palabras. NO COPIES NINGÚN TEXTO LITERAL del documento, para evitar cortes por filtros de copyright.
+                        6. Devuelve ÚNICAMENTE la estructura JSON estricta.
                         """
                         
                         try:
