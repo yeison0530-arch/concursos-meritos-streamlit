@@ -17,7 +17,7 @@ class Pregunta(BaseModel):
     enunciado: str = Field(description="El texto principal de la pregunta a responder")
     opciones: list[str] = Field(description="Lista de 4 posibles opciones de respuesta")
     correcta: int = Field(description="Índice (0 a 3) de la respuesta correcta")
-    justificacion: str = Field(description="Justificación detallada y pedagógica de la respuesta")
+    justificacion: str = Field(description="Justificación detallada que cite expresamente el artículo, inciso, numeral, literal, o datos de jurisprudencia (radicado, fecha, sala, magistrado ponente).")
     mapa_mental: str = Field(description="Esquema conceptual horizontal usando flechas (->)")
 
 class TestResult(BaseModel):
@@ -321,9 +321,19 @@ if concurso_main and doc_main and sesion_main:
     
     progreso_actual = st.session_state.progreso_por_doc[id_progreso]
     
-    st.progress(progreso_actual / 100.0, text=f"Progreso de lectura acumulado: {progreso_actual:.1f}%")
-    
-    porcentaje_estudio = st.slider("¿Qué porcentaje de la fuente deseas abarcar en el próximo test?", min_value=5, max_value=50, value=10, step=5)
+    col_prog1, col_prog2 = st.columns([4, 1])
+    with col_prog1:
+        st.progress(progreso_actual / 100.0, text=f"Progreso de lectura acumulado: {progreso_actual:.1f}%")
+    with col_prog2:
+        if st.button("🔄 Reiniciar", help="Vuelve el progreso a 0% para este documento"):
+            st.session_state.progreso_por_doc[id_progreso] = 0.0
+            sesiones = obtener_sesiones(concurso_main)
+            if st.session_state.sesion_activa in sesiones:
+                sesiones[st.session_state.sesion_activa]["progreso_por_doc"] = st.session_state.progreso_por_doc
+                guardar_sesiones(concurso_main, sesiones)
+            st.rerun()
+            
+    paginas_estudio = st.slider("¿Cuántas páginas (aprox.) deseas abarcar en el próximo test?", min_value=1, max_value=30, value=3, step=1)
     
     col_btn1, col_btn2 = st.columns(2)
     generar_avance = col_btn1.button("🚀 Avanzar materia nueva", type="primary", use_container_width=True, help="Avanza tu progreso y genera preguntas del material no visto.")
@@ -339,6 +349,10 @@ if concurso_main and doc_main and sesion_main:
                 texto_completo = extraer_texto_doc(concurso_main, doc_main)
                 if texto_completo:
                     total_chars = len(texto_completo)
+                    
+                    # Estimación realista: 1800 caracteres equivalen aprox a una página de lectura
+                    total_paginas_estimadas = max(1, total_chars / 1800)
+                    porcentaje_estudio = (paginas_estudio / total_paginas_estimadas) * 100.0
                     
                     if es_repaso:
                         fin_idx_repaso = int((progreso_actual / 100.0) * total_chars)
@@ -362,7 +376,7 @@ if concurso_main and doc_main and sesion_main:
                         st.write("🤖 Analizando el texto y estructurando preguntas con IA...")
                         prompt = f"""
                         Actúa como un experto en la creación de exámenes para concursos de méritos públicos.
-                        A continuación te proporciono un extracto del temario:
+                        A continuación te proporciono un extracto del documento o norma original llamado '{doc_main}':
                         
                         --- INICIO DEL EXTRACTO ---
                         {texto_seccion}
@@ -371,10 +385,22 @@ if concurso_main and doc_main and sesion_main:
                         INSTRUCCIONES ESTRICTAS DE FORMATO:
                         1. Genera EXACTAMENTE 5 preguntas basadas en este texto.
                         2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'enunciado', 'justificacion' y 'mapa_mental'.
-                        3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta.
+                        3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta. DEBES citar la fuente con precisión: si el texto hace referencia a leyes, normas, decretos o jurisprudencia, DEBES mencionar su nombre completo sin recortarlo (incluyendo número, año, artículo, inciso, radicado, fecha, sala o ponente). También puedes hacer referencia al documento base ('{doc_main}') en el que te estás apoyando.
                         4. El "mapa_mental" debe ser un esquema conceptual horizontal corto y directo usando flechas. (Ejemplo: Concepto -> Propiedad -> Detalle).
-                        5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido debe ser 100% PARAFRASEADO usando tus propias palabras. NO COPIES NINGÚN TEXTO LITERAL del documento.
-                        6. Devuelve ÚNICAMENTE la estructura JSON estricta.
+                        5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido (incluyendo la justificación) debe ser 100% PARAFRASEADO usando tus propias palabras para evitar filtros de Copyright. Menciona los números de artículos, el nombre de las leyes y radicados, pero NUNCA copies el texto legal ni los extractos normativos de forma literal.
+                        6. Devuelve ÚNICAMENTE un JSON válido con la siguiente estructura exacta:
+                        {{
+                          "preguntas": [
+                            {{
+                              "id": 1,
+                              "enunciado": "¿Pregunta de ejemplo?",
+                              "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+                              "correcta": 0,
+                              "justificacion": "Explicación detallada...",
+                              "mapa_mental": "A -> B -> C"
+                            }}
+                          ]
+                        }}
                         """
                         
                         try:
@@ -382,7 +408,6 @@ if concurso_main and doc_main and sesion_main:
                                 prompt,
                                 generation_config=genai.GenerationConfig(
                                     response_mime_type="application/json",
-                                    response_schema=TestResult,
                                     temperature=0.2,
                                     max_output_tokens=8192
                                 )
