@@ -18,10 +18,10 @@ class Pregunta(BaseModel):
     opciones: list[str] = Field(description="Lista de 4 posibles opciones de respuesta")
     correcta: int = Field(description="Índice (0 a 3) de la respuesta correcta")
     justificacion: str = Field(description="Justificación detallada y pedagógica de la respuesta")
-    mapa_mental: str = Field(description="Diagrama de árbol jerárquico y vertical usando texto ASCII (ej: |-- )")
+    mapa_mental: str = Field(description="Esquema conceptual horizontal usando flechas (->)")
 
 class TestResult(BaseModel):
-    preguntas: list[Pregunta] = Field(description="Lista con exactamente 3 preguntas generadas")
+    preguntas: list[Pregunta] = Field(description="Lista con exactamente 5 preguntas generadas")
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Estudio Concursos", page_icon="📚", layout="wide")
@@ -369,13 +369,10 @@ if concurso_main and doc_main and sesion_main:
                         --- FIN DEL EXTRACTO ---
                         
                         INSTRUCCIONES ESTRICTAS DE FORMATO:
-                        1. Genera EXACTAMENTE 3 preguntas basadas en este texto. (NO GENERES MÁS DE 3).
+                        1. Genera EXACTAMENTE 5 preguntas basadas en este texto.
                         2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'enunciado', 'justificacion' y 'mapa_mental'.
-                        3. La "justificacion" debe ser detallada, generosa y muy pedagógica. Explica ampliamente por qué la opción es correcta y cita la fuente (ley, artículo, sentencia).
-                        4. El "mapa_mental" DEBE SER UN DIAGRAMA DE ÁRBOL VERTICAL. Usa caracteres ASCII (como "|--") y saltos de línea para mostrar la jerarquía descendente. Ejemplo estricto:
-                           Tema Principal
-                           |-- Subtema 1
-                           |    |-- Detalle A
+                        3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta.
+                        4. El "mapa_mental" debe ser un esquema conceptual horizontal corto y directo usando flechas. (Ejemplo: Concepto -> Propiedad -> Detalle).
                         5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido debe ser 100% PARAFRASEADO usando tus propias palabras. NO COPIES NINGÚN TEXTO LITERAL del documento.
                         6. Devuelve ÚNICAMENTE la estructura JSON estricta.
                         """
@@ -456,8 +453,7 @@ if concurso_main and doc_main and sesion_main:
                 with st.expander("💡 Ver Explicación Completa", expanded=True):
                     st.info(f"**Justificación:**\n\n{justificacion}")
                     if mapa:
-                        st.warning("**Esquema Mental Visual:**")
-                        st.code(mapa.replace('\\n', '\n'), language='text')
+                        st.warning("**Esquema Mental Visual:**\n\n" + mapa.replace('\\n', '\n'))
             st.write("---")
             
         if st.button("Repetir el mismo test actual", help="Borra las respuestas y permite volver a intentar las mismas preguntas exactas."):
