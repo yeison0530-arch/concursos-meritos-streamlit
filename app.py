@@ -370,14 +370,14 @@ if concurso_main and doc_main and sesion_main:
                         --- FIN DEL EXTRACTO ---
                         
                         INSTRUCCIONES ESTRICTAS:
-                        1. Genera un test con preguntas de opción múltiple (mínimo 3, máximo 5) basadas EXCLUSIVAMENTE en este texto.
+                        1. Genera un test con EXACTAMENTE 3 preguntas de opción múltiple basadas EXCLUSIVAMENTE en este texto.
                         2. Asegúrate de que haya una única opción correcta por pregunta.
-                        3. La justificación debe ser detallada y clara sobre por qué la opción es correcta.
-                        4. Añade un "contexto_general" profundo sobre el tema general que aborda la respuesta para expandir el aprendizaje.
-                        5. Añade un "mapa_mental" en formato de viñetas (bullet points jerárquicos de Markdown usando -) partiendo del origen u origen conceptual del tema tocado en la pregunta.
-                        6. CITAS OBLIGATORIAS: Fundamenta tu respuesta citando la fuente exacta. Si es una Ley o Decreto, menciona expresamente el número del artículo, inciso, numeral o literal. Si es jurisprudencia, incluye fecha, sección/sala, radicado y magistrado ponente (si dichos datos están en el texto).
-                        7. REGLA CRÍTICA DE SEGURIDAD: Aunque debes mencionar los números de artículos o datos de la fuente, el CONTENIDO de tu explicación debe ser 100% PARAFRASEADO usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar textualmente fragmentos del documento original para evitar bloqueos de copyright.{instruccion_extra}
-                        8. Devuelve ÚNICAMENTE la estructura JSON solicitada.
+                        3. La justificación debe ser clara sobre por qué la opción es correcta.
+                        4. El "contexto_general" debe ser MUY BREVE y conciso.
+                        5. El "mapa_mental" es LO MÁS IMPORTANTE. Debe estar en formato de viñetas (bullet points jerárquicos de Markdown usando guiones) para esquematizar el tema partiendo del origen.
+                        6. CITAS OBLIGATORIAS: Fundamenta tu respuesta citando la fuente exacta (artículo, ley, jurisprudencia).
+                        7. REGLA CRÍTICA DE SEGURIDAD: El CONTENIDO de tu explicación debe ser 100% PARAFRASEADO usando tus propias palabras. Está ESTRICTAMENTE PROHIBIDO copiar textualmente fragmentos del documento original para evitar bloqueos de copyright.{instruccion_extra}
+                        8. Asegúrate de incluir el "enunciado" de cada pregunta. Devuelve ÚNICAMENTE la estructura JSON solicitada.
                         """
                         
                         try:
