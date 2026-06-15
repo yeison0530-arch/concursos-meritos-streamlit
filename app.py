@@ -18,7 +18,7 @@ class Pregunta(BaseModel):
     opciones: list[str] = Field(description="Lista de 4 posibles opciones de respuesta")
     correcta: int = Field(description="Índice (0 a 3) de la respuesta correcta")
     justificacion: str = Field(description="Justificación detallada y pedagógica de la respuesta")
-    mapa_mental: str = Field(description="Esquema visual ESTRICTAMENTE VERTICAL usando flechas hacia abajo (↓) y saltos de línea.")
+    mapa_mental: str = Field(description="Diagrama de árbol jerárquico y vertical usando texto ASCII (ej: |-- )")
 
 class TestResult(BaseModel):
     preguntas: list[Pregunta] = Field(description="Lista con exactamente 5 preguntas generadas")
@@ -372,7 +372,11 @@ if concurso_main and doc_main and sesion_main:
                         1. Genera EXACTAMENTE 5 preguntas basadas en este texto.
                         2. REGLA OBLIGATORIA: El JSON resultante DEBE contener la clave "enunciado" en cada pregunta.
                         3. La "justificacion" debe ser detallada, generosa y muy pedagógica. Explica ampliamente por qué la opción es correcta y cita la fuente (ley, artículo, sentencia).
-                        4. El "mapa_mental" DEBE SER VERTICAL. Usa flechas descendentes (↓) para conectar un concepto sobre otro.
+                        4. El "mapa_mental" DEBE SER UN DIAGRAMA DE ÁRBOL VERTICAL. Usa caracteres ASCII (como "|--") y saltos de línea para mostrar la jerarquía. Ejemplo:
+                           Tema Principal
+                           |-- Subtema 1
+                           |    |-- Detalle A
+                           |-- Subtema 2
                         5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido debe ser 100% PARAFRASEADO usando tus propias palabras. NO COPIES NINGÚN TEXTO LITERAL del documento.
                         6. Devuelve ÚNICAMENTE la estructura JSON estricta.
                         """
@@ -453,8 +457,8 @@ if concurso_main and doc_main and sesion_main:
                 with st.expander("💡 Ver Explicación Completa", expanded=True):
                     st.info(f"**Justificación:**\n\n{justificacion}")
                     if mapa:
-                        mapa_formateado = mapa.replace('\\n', '\n').replace('\n', '\n\n')
-                        st.warning("**Esquema Mental Visual:**\n\n" + mapa_formateado)
+                        st.warning("**Esquema Mental Visual:**")
+                        st.code(mapa.replace('\\n', '\n'), language='text')
             st.write("---")
             
         if st.button("Repetir el mismo test actual", help="Borra las respuestas y permite volver a intentar las mismas preguntas exactas."):
