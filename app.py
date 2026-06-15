@@ -59,7 +59,7 @@ BUCKET_NAME = 'documentos_concursos'
 # --- CONFIGURACIÓN DE GEMINI ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-flash-latest")
+    # El modelo se instanciará dinámicamente en la barra lateral
 except Exception as e:
     st.error(f"Error al configurar la API de Gemini: {e}")
     st.stop()
@@ -164,32 +164,45 @@ def eliminar_documento(concurso, doc_name):
     except Exception as e:
         st.sidebar.error(f"Error al eliminar el archivo: {e}")
 
-def extraer_texto_doc(concurso, doc_name):
-    """Descarga el documento a la memoria y extrae su texto con barra de progreso."""
+@st.cache_data(show_spinner=False)
+def extraer_texto_doc_cached(concurso, doc_name):
     ruta = f"{safe_name(concurso)}/{doc_name}"
     try:
         res = descargar_documento_cache(ruta)
         if doc_name.endswith('.pdf'):
             pdf_reader = PyPDF2.PdfReader(io.BytesIO(res))
             texto = ""
-            total_pages = len(pdf_reader.pages)
-            progreso_lectura = st.progress(0.0, text=f"Preparando lectura de {total_pages} páginas...")
-            for i, page in enumerate(pdf_reader.pages):
+            for page in pdf_reader.pages:
                 extracted = page.extract_text()
                 if extracted:
                     texto += extracted + "\n"
-                porcentaje = (i + 1) / total_pages
-                progreso_lectura.progress(porcentaje, text=f"Extrayendo texto del PDF... Página {i+1} de {total_pages}")
-            progreso_lectura.empty()
             return texto
         elif doc_name.endswith('.txt'):
             return res.decode('utf-8')
     except Exception as e:
-        st.error(f"Error al leer el documento: {e}")
         return None
+
+def extraer_texto_doc(concurso, doc_name):
+    """Descarga el documento a la memoria y extrae su texto."""
+    return extraer_texto_doc_cached(concurso, doc_name)
 
 # --- INTERFAZ BARRA LATERAL ---
 with st.sidebar:
+    st.header("🤖 Configuración de IA")
+    modelo_seleccionado = st.selectbox(
+        "Modelo de Inteligencia Artificial:",
+        options=["gemini-flash-latest", "gemini-pro-latest"],
+        format_func=lambda x: "⚡ Flash (Rápido y Económico)" if "flash" in x else "🧠 Pro (Razonamiento Complejo)",
+        index=0
+    )
+    
+    try:
+        model = genai.GenerativeModel(modelo_seleccionado)
+    except Exception as e:
+        st.error(f"Error instanciando modelo: {e}")
+
+    st.divider()
+
     st.header("✨ Crear Nuevo Concurso")
     nuevo_concurso = st.text_input("Nombre del Concurso")
     if st.button("Guardar concurso"):
@@ -270,7 +283,8 @@ with st.sidebar:
             # 3. Documento a estudiar y Acción
             st.write("📖 **Documento a estudiar**")
             if documentos:
-                doc_seleccionado_ui = st.selectbox("Selecciona fuente:", documentos, key=f"doc_{conc}")
+                opciones_doc = ["📚 Todas las fuentes (Estudio Global)"] + documentos
+                doc_seleccionado_ui = st.selectbox("Selecciona fuente:", opciones_doc, key=f"doc_{conc}")
                 puede_estudiar = sesion_elegida != "-- Crear Nueva --"
                 
                 if st.button("▶️ Seleccionar para estudiar", type="primary", key=f"start_{conc}", disabled=not puede_estudiar):
@@ -346,46 +360,94 @@ if concurso_main and doc_main and sesion_main:
         else:
             with st.status("Preparando tu test...", expanded=True) as status:
                 st.write("📖 Extrayendo texto del documento...")
-                texto_completo = extraer_texto_doc(concurso_main, doc_main)
-                if texto_completo:
-                    total_chars = len(texto_completo)
+                texto_seccion = ""
+                doc_original_name = doc_main
+                instruccion_extra = ""
+                
+                if doc_main == "📚 Todas las fuentes (Estudio Global)":
+                    st.write("📚 Analizando todas las fuentes del concurso...")
+                    docs_del_concurso = listar_documentos(concurso_main)
+                    if not docs_del_concurso:
+                        status.update(label="Error", state="error")
+                        st.error("No hay documentos en este concurso.")
+                        st.stop()
                     
-                    # Estimación realista: 1800 caracteres equivalen aprox a una página de lectura
+                    textos_por_doc = {}
+                    total_chars = 0
+                    for d in docs_del_concurso:
+                        txt = extraer_texto_doc_cached(concurso_main, d)
+                        if txt:
+                            textos_por_doc[d] = txt
+                            total_chars += len(txt)
+                    
+                    if total_chars == 0:
+                        status.update(label="Error", state="error")
+                        st.error("Los documentos están vacíos o no se pudieron leer.")
+                        st.stop()
+                        
                     total_paginas_estimadas = max(1, total_chars / 1800)
                     porcentaje_estudio = (paginas_estudio / total_paginas_estimadas) * 100.0
                     
+                    for d, txt in textos_por_doc.items():
+                        largo = len(txt)
+                        if es_repaso:
+                            fin_idx_repaso = int((progreso_actual / 100.0) * largo)
+                            tamaño_chunk = int((porcentaje_estudio / 100.0) * largo)
+                            max_inicio = max(0, fin_idx_repaso - tamaño_chunk)
+                            inicio_idx = random.randint(0, max_inicio)
+                            fin_idx = min(inicio_idx + tamaño_chunk, fin_idx_repaso)
+                        else:
+                            inicio_idx = int((progreso_actual / 100.0) * largo)
+                            fin_idx = int(((progreso_actual + porcentaje_estudio) / 100.0) * largo)
+                            fin_idx = min(fin_idx, largo)
+                            
+                        chunk = txt[inicio_idx:fin_idx]
+                        if chunk.strip():
+                            texto_seccion += f"\n\n--- DOCUMENTO: {d} ---\n{chunk}"
+                            
+                    doc_original_name = "Varias Fuentes (Modo Global)"
                     if es_repaso:
-                        fin_idx_repaso = int((progreso_actual / 100.0) * total_chars)
-                        tamaño_chunk = int((porcentaje_estudio / 100.0) * total_chars)
-                        max_inicio = max(0, fin_idx_repaso - tamaño_chunk)
-                        inicio_idx = random.randint(0, max_inicio)
-                        fin_idx = min(inicio_idx + tamaño_chunk, fin_idx_repaso)
                         instruccion_extra = "\\n\\nIMPORTANTE: ESTE ES UN TEST DE REPASO. Elabora preguntas diferentes a las clásicas para afianzar la memoria."
-                    else:
-                        inicio_idx = int((progreso_actual / 100.0) * total_chars)
-                        fin_idx = int(((progreso_actual + porcentaje_estudio) / 100.0) * total_chars)
-                        fin_idx = min(fin_idx, total_chars)
-                        instruccion_extra = ""
-                    
-                    texto_seccion = texto_completo[inicio_idx:fin_idx]
-                    
-                    if not texto_seccion.strip():
-                        status.update(label="Error de progreso", state="error", expanded=True)
-                        st.warning("Ya has completado este documento o la sección no contiene texto. Reinicia tu progreso para empezar de nuevo.")
-                    else:
-                        st.write("🤖 Analizando el texto y estructurando preguntas con IA...")
-                        prompt = f"""
-                        Actúa como un experto en la creación de exámenes para concursos de méritos públicos.
-                        A continuación te proporciono un extracto del documento o norma original llamado '{doc_main}':
+                else:
+                    texto_completo = extraer_texto_doc_cached(concurso_main, doc_main)
+                    if texto_completo:
+                        total_chars = len(texto_completo)
                         
-                        --- INICIO DEL EXTRACTO ---
-                        {texto_seccion}
-                        --- FIN DEL EXTRACTO ---
+                        total_paginas_estimadas = max(1, total_chars / 1800)
+                        porcentaje_estudio = (paginas_estudio / total_paginas_estimadas) * 100.0
                         
-                        INSTRUCCIONES ESTRICTAS DE FORMATO:
-                        1. Genera EXACTAMENTE 5 preguntas basadas en este texto.
-                        2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'enunciado', 'justificacion' y 'mapa_mental'.
-                        3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta. DEBES citar la fuente con precisión: si el texto hace referencia a leyes, normas, decretos o jurisprudencia, DEBES mencionar su nombre completo sin recortarlo (incluyendo número, año, artículo, inciso, radicado, fecha, sala o ponente). También puedes hacer referencia al documento base ('{doc_main}') en el que te estás apoyando.
+                        if es_repaso:
+                            fin_idx_repaso = int((progreso_actual / 100.0) * total_chars)
+                            tamaño_chunk = int((porcentaje_estudio / 100.0) * total_chars)
+                            max_inicio = max(0, fin_idx_repaso - tamaño_chunk)
+                            inicio_idx = random.randint(0, max_inicio)
+                            fin_idx = min(inicio_idx + tamaño_chunk, fin_idx_repaso)
+                            instruccion_extra = "\\n\\nIMPORTANTE: ESTE ES UN TEST DE REPASO. Elabora preguntas diferentes a las clásicas para afianzar la memoria."
+                        else:
+                            inicio_idx = int((progreso_actual / 100.0) * total_chars)
+                            fin_idx = int(((progreso_actual + porcentaje_estudio) / 100.0) * total_chars)
+                            fin_idx = min(fin_idx, total_chars)
+                            instruccion_extra = ""
+                            
+                        texto_seccion = texto_completo[inicio_idx:fin_idx]
+
+                if not texto_seccion.strip():
+                    status.update(label="Error de progreso", state="error", expanded=True)
+                    st.warning("Ya has completado este documento o la sección no contiene texto. Reinicia tu progreso para empezar de nuevo.")
+                else:
+                    st.write("🤖 Analizando el texto y estructurando preguntas con IA...")
+                    prompt = f"""
+                    Actúa como un experto en la creación de exámenes para concursos de méritos públicos.
+                    A continuación te proporciono un extracto del documento o documentos a estudiar (si hay varios, cada uno estará separado e identificado):
+                    
+                    --- INICIO DEL EXTRACTO ---
+                    {texto_seccion}
+                    --- FIN DEL EXTRACTO ---
+                    
+                    INSTRUCCIONES ESTRICTAS DE FORMATO:
+                    1. Genera EXACTAMENTE 5 preguntas basadas en este texto.
+                    2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'enunciado', 'justificacion' y 'mapa_mental'.
+                    3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta. DEBES citar la fuente con precisión: si el texto hace referencia a leyes, normas, decretos o jurisprudencia, DEBES mencionar su nombre completo sin recortarlo (incluyendo número, año, artículo, inciso, radicado, fecha, sala o ponente). También DEBES hacer referencia explícita al nombre del documento al que pertenece el fragmento (indicado como "--- DOCUMENTO: nombre ---").
                         4. El "mapa_mental" debe ser un esquema conceptual horizontal corto y directo usando flechas. (Ejemplo: Concepto -> Propiedad -> Detalle).
                         5. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido (incluyendo la justificación) debe ser 100% PARAFRASEADO usando tus propias palabras para evitar filtros de Copyright. Menciona los números de artículos, el nombre de las leyes y radicados, pero NUNCA copies el texto legal ni los extractos normativos de forma literal.
                         6. Devuelve ÚNICAMENTE un JSON válido con la siguiente estructura exacta:
@@ -403,39 +465,39 @@ if concurso_main and doc_main and sesion_main:
                         }}
                         """
                         
-                        try:
-                            respuesta = model.generate_content(
-                                prompt,
-                                generation_config=genai.GenerationConfig(
-                                    response_mime_type="application/json",
-                                    temperature=0.2,
-                                    max_output_tokens=8192
-                                )
+                    try:
+                        respuesta = model.generate_content(
+                            prompt,
+                            generation_config=genai.GenerationConfig(
+                                response_mime_type="application/json",
+                                temperature=0.2,
+                                max_output_tokens=8192
                             )
-                            try:
-                                json_texto = respuesta.text
-                                st.session_state.test_actual = json.loads(json_texto)
-                            except Exception as parse_error:
-                                finish_reason = respuesta.candidates[0].finish_reason if respuesta.candidates else "Desconocida"
-                                long_texto = len(respuesta.text) if hasattr(respuesta, 'text') else 0
-                                raise Exception(f"Error parseando JSON. La respuesta se cortó en {long_texto} caracteres. Razón de parada de la IA: {finish_reason}. Detalle: {parse_error}")
-                            
-                            st.session_state.respuestas_usuario = {}
-                            
-                            if not es_repaso:
-                                nuevo_progreso = min(progreso_actual + porcentaje_estudio, 100.0)
-                                st.session_state.progreso_por_doc[id_progreso] = nuevo_progreso
-                                # Guardar en la nube automáticamente
-                                sesiones = obtener_sesiones(concurso_main)
-                                if st.session_state.sesion_activa in sesiones:
-                                    sesiones[st.session_state.sesion_activa]["progreso_por_doc"] = st.session_state.progreso_por_doc
-                                    guardar_sesiones(concurso_main, sesiones)
-                            
-                            status.update(label="¡Test generado con éxito!", state="complete", expanded=False)
-                            st.rerun()
-                        except Exception as e:
-                            status.update(label="Error en la Inteligencia Artificial", state="error", expanded=True)
-                            st.error(f"Error técnico de Gemini: {e}")
+                        )
+                        try:
+                            json_texto = respuesta.text
+                            st.session_state.test_actual = json.loads(json_texto)
+                        except Exception as parse_error:
+                            finish_reason = respuesta.candidates[0].finish_reason if respuesta.candidates else "Desconocida"
+                            long_texto = len(respuesta.text) if hasattr(respuesta, 'text') else 0
+                            raise Exception(f"Error parseando JSON. La respuesta se cortó en {long_texto} caracteres. Razón de parada de la IA: {finish_reason}. Detalle: {parse_error}")
+                        
+                        st.session_state.respuestas_usuario = {}
+                        
+                        if not es_repaso:
+                            nuevo_progreso = min(progreso_actual + porcentaje_estudio, 100.0)
+                            st.session_state.progreso_por_doc[id_progreso] = nuevo_progreso
+                            # Guardar en la nube automáticamente
+                            sesiones = obtener_sesiones(concurso_main)
+                            if st.session_state.sesion_activa in sesiones:
+                                sesiones[st.session_state.sesion_activa]["progreso_por_doc"] = st.session_state.progreso_por_doc
+                                guardar_sesiones(concurso_main, sesiones)
+                        
+                        status.update(label="¡Test generado con éxito!", state="complete", expanded=False)
+                        st.rerun()
+                    except Exception as e:
+                        status.update(label="Error en la Inteligencia Artificial", state="error", expanded=True)
+                        st.error(f"Error técnico de Gemini: {e}")
 
     if st.session_state.test_actual:
         st.subheader("📝 Cuestionario Actual")
