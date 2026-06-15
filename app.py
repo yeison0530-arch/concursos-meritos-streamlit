@@ -9,18 +9,20 @@ from supabase import create_client, Client
 import google.generativeai as genai
 import typing_extensions as typing
 
-# --- TIPOS DE DATOS PARA GEMINI ---
-class Pregunta(typing.TypedDict):
-    id: int
-    enunciado: str
-    opciones: list[str]
-    correcta: int
-    justificacion: str
-    contexto_general: str
-    mapa_mental: str
+from pydantic import BaseModel, Field
 
-class TestResult(typing.TypedDict):
-    preguntas: list[Pregunta]
+# --- TIPOS DE DATOS PARA GEMINI ---
+class Pregunta(BaseModel):
+    id: int = Field(description="Número de la pregunta")
+    enunciado: str = Field(description="El texto de la pregunta a responder")
+    opciones: list[str] = Field(description="Lista de 4 posibles opciones de respuesta")
+    correcta: int = Field(description="Índice (0 a 3) de la respuesta correcta")
+    justificacion: str = Field(description="Justificación legal/técnica de la respuesta")
+    contexto_general: str = Field(description="Contexto amplio y pedagógico del tema general tocado en la pregunta")
+    mapa_mental: str = Field(description="Mapa mental estructurado usando viñetas anidadas de Markdown")
+
+class TestResult(BaseModel):
+    preguntas: list[Pregunta] = Field(description="Lista de preguntas generadas (debe contener entre 3 y 5 preguntas)")
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Estudio Concursos", page_icon="📚", layout="wide")
