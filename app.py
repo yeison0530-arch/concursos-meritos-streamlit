@@ -79,12 +79,12 @@ def obtener_concursos():
 def guardar_concursos(lista_concursos):
     datos = json.dumps(lista_concursos).encode('utf-8')
     try:
-        supabase.storage.from_(BUCKET_NAME).update(file=datos, path='concursos.json', file_options={"content-type": "application/json"})
+        supabase.storage.from_(BUCKET_NAME).update(file=datos, path='concursos.json', file_options={"content-type": "application/json", "cache-control": "no-cache"})
         descargar_documento_cache.clear()
         return True
     except Exception:
         try:
-            supabase.storage.from_(BUCKET_NAME).upload(file=datos, path='concursos.json', file_options={"content-type": "application/json"})
+            supabase.storage.from_(BUCKET_NAME).upload(file=datos, path='concursos.json', file_options={"content-type": "application/json", "cache-control": "no-cache"})
             descargar_documento_cache.clear()
             return True
         except Exception as e:
@@ -103,10 +103,10 @@ def guardar_sesiones(concurso, sesiones_dict):
     ruta = f"{safe_name(concurso)}/sesiones.json"
     datos = json.dumps(sesiones_dict).encode('utf-8')
     try:
-        supabase.storage.from_(BUCKET_NAME).update(file=datos, path=ruta, file_options={"content-type": "application/json"})
+        supabase.storage.from_(BUCKET_NAME).update(file=datos, path=ruta, file_options={"content-type": "application/json", "cache-control": "no-cache"})
     except Exception:
         try:
-            supabase.storage.from_(BUCKET_NAME).upload(file=datos, path=ruta, file_options={"content-type": "application/json"})
+            supabase.storage.from_(BUCKET_NAME).upload(file=datos, path=ruta, file_options={"content-type": "application/json", "cache-control": "no-cache"})
         except Exception:
             pass
     descargar_documento_cache.clear()
@@ -141,7 +141,7 @@ def eliminar_concurso(concurso):
 def listar_documentos(concurso):
     try:
         res = supabase.storage.from_(BUCKET_NAME).list(path=safe_name(concurso))
-        archivos = [f['name'] for f in res if f['name'].endswith(('.pdf', '.txt'))]
+        archivos = [f['name'] for f in res if f['name'].lower().endswith(('.pdf', '.txt'))]
         return archivos
     except Exception as e:
         return []
@@ -243,7 +243,8 @@ with st.sidebar:
                     st.write("**Fuentes Actuales:**")
                     for doc in documentos:
                         col1, col2 = st.columns([4, 1])
-                        col1.write(f"📄 {doc}")
+                        display_doc = doc if len(doc) <= 40 else doc[:25] + "..." + doc[-10:]
+                        col1.write(f"📄 {display_doc}")
                         if col2.button("🗑️", key=f"del_{conc}_{doc}", help="Eliminar"):
                             eliminar_documento(conc, doc)
                             st.rerun()
@@ -388,6 +389,7 @@ if concurso_main and doc_main and sesion_main:
                     total_paginas_estimadas = max(1, total_chars / 1800)
                     porcentaje_estudio = (paginas_estudio / total_paginas_estimadas) * 100.0
                     
+                    chunks_list = []
                     for d, txt in textos_por_doc.items():
                         largo = len(txt)
                         if es_repaso:
@@ -403,11 +405,15 @@ if concurso_main and doc_main and sesion_main:
                             
                         chunk = txt[inicio_idx:fin_idx]
                         if chunk.strip():
-                            texto_seccion += f"\n\n--- DOCUMENTO: {d} ---\n{chunk}"
+                            chunks_list.append(f"\n\n--- DOCUMENTO: {d} ---\n{chunk}")
+                    
+                    random.shuffle(chunks_list)
+                    texto_seccion = "".join(chunks_list)
                             
                     doc_original_name = "Varias Fuentes (Modo Global)"
+                    instruccion_extra = "\\n\\nIMPORTANTE: ESTÁS EN MODO DE ESTUDIO GLOBAL. El extracto contiene fragmentos de varios documentos. ES OBLIGATORIO que distribuyas las 5 preguntas entre los distintos documentos proporcionados. NO extraigas todas las preguntas de un solo documento."
                     if es_repaso:
-                        instruccion_extra = "\\n\\nIMPORTANTE: ESTE ES UN TEST DE REPASO. Elabora preguntas diferentes a las clásicas para afianzar la memoria."
+                        instruccion_extra += " ADEMÁS, ESTE ES UN TEST DE REPASO. Elabora preguntas diferentes a las clásicas para afianzar la memoria."
                 else:
                     texto_completo = extraer_texto_doc_cached(concurso_main, doc_main)
                     if texto_completo:
@@ -444,7 +450,7 @@ if concurso_main and doc_main and sesion_main:
                     {texto_seccion}
                     --- FIN DEL EXTRACTO ---
                     
-                    INSTRUCCIONES ESTRICTAS DE FORMATO:
+                    INSTRUCCIONES ESTRICTAS DE FORMATO:{instruccion_extra}
                     1. Genera EXACTAMENTE 5 preguntas basadas en este texto.
                     2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'enunciado', 'justificacion' y 'mapa_mental'.
                     3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta. DEBES citar la fuente con precisión: si el texto hace referencia a leyes, normas, decretos o jurisprudencia, DEBES mencionar su nombre completo sin recortarlo (incluyendo número, año, artículo, inciso, radicado, fecha, sala o ponente). También DEBES hacer referencia explícita al nombre del documento al que pertenece el fragmento (indicado como "--- DOCUMENTO: nombre ---").
