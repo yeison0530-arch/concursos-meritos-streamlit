@@ -1,7 +1,7 @@
 import streamlit as st
 import io
 import json
-import PyPDF2
+import fitz  # PyMuPDF
 import unicodedata
 import re
 import random
@@ -170,12 +170,13 @@ def extraer_texto_doc_cached(concurso, doc_name):
     try:
         res = descargar_documento_cache(ruta)
         if doc_name.endswith('.pdf'):
-            pdf_reader = PyPDF2.PdfReader(io.BytesIO(res))
+            pdf_document = fitz.open(stream=res, filetype="pdf")
             texto = ""
-            for page in pdf_reader.pages:
-                extracted = page.extract_text()
+            for page in pdf_document:
+                extracted = page.get_text()
                 if extracted:
                     texto += extracted + "\n"
+            pdf_document.close()
             return texto
         elif doc_name.endswith('.txt'):
             return res.decode('utf-8')
@@ -331,17 +332,34 @@ if concurso_main and doc_main and sesion_main:
     st.subheader(f"🏛️ Concurso: {concurso_main}")
     st.write(f"**Sesión Activa:** {sesion_main} | **Estudiando:** {doc_main}")
     
-    if id_progreso not in st.session_state.progreso_por_doc:
-        st.session_state.progreso_por_doc[id_progreso] = 0.0
+    docs_globales = listar_documentos(concurso_main) if doc_main == "📚 Todas las fuentes (Estudio Global)" else []
     
-    progreso_actual = st.session_state.progreso_por_doc[id_progreso]
+    if doc_main == "📚 Todas las fuentes (Estudio Global)":
+        if docs_globales:
+            suma_prog = 0.0
+            for d in docs_globales:
+                k = f"{concurso_main}/{d}"
+                if k not in st.session_state.progreso_por_doc:
+                    st.session_state.progreso_por_doc[k] = 0.0
+                suma_prog += st.session_state.progreso_por_doc[k]
+            progreso_actual = suma_prog / len(docs_globales)
+        else:
+            progreso_actual = 0.0
+    else:
+        if id_progreso not in st.session_state.progreso_por_doc:
+            st.session_state.progreso_por_doc[id_progreso] = 0.0
+        progreso_actual = st.session_state.progreso_por_doc[id_progreso]
     
     col_prog1, col_prog2 = st.columns([4, 1])
     with col_prog1:
         st.progress(progreso_actual / 100.0, text=f"Progreso de lectura acumulado: {progreso_actual:.1f}%")
     with col_prog2:
         if st.button("🔄 Reiniciar", help="Vuelve el progreso a 0% para este documento"):
-            st.session_state.progreso_por_doc[id_progreso] = 0.0
+            if doc_main == "📚 Todas las fuentes (Estudio Global)":
+                for d in docs_globales:
+                    st.session_state.progreso_por_doc[f"{concurso_main}/{d}"] = 0.0
+            else:
+                st.session_state.progreso_por_doc[id_progreso] = 0.0
             sesiones = obtener_sesiones(concurso_main)
             if st.session_state.sesion_activa in sesiones:
                 sesiones[st.session_state.sesion_activa]["progreso_por_doc"] = st.session_state.progreso_por_doc
@@ -364,56 +382,92 @@ if concurso_main and doc_main and sesion_main:
                 texto_seccion = ""
                 doc_original_name = doc_main
                 instruccion_extra = ""
+                doc_a_avanzar = None
+                avance_pct_doc = 0.0
                 
                 if doc_main == "📚 Todas las fuentes (Estudio Global)":
-                    st.write("📚 Analizando todas las fuentes del concurso...")
+                    st.write("📚 Analizando fuentes del concurso...")
                     docs_del_concurso = listar_documentos(concurso_main)
                     if not docs_del_concurso:
                         status.update(label="Error", state="error")
                         st.error("No hay documentos en este concurso.")
                         st.stop()
                     
-                    textos_por_doc = {}
-                    total_chars = 0
-                    for d in docs_del_concurso:
-                        txt = extraer_texto_doc_cached(concurso_main, d)
-                        if txt:
-                            textos_por_doc[d] = txt
-                            total_chars += len(txt)
+                    txt = None
+                    doc_elegido = None
+                    prog_doc = 0.0
                     
-                    if total_chars == 0:
+                    if es_repaso:
+                        docs_repaso = [d for d in docs_del_concurso if st.session_state.progreso_por_doc.get(f"{concurso_main}/{d}", 0.0) > 0.0]
+                        if not docs_repaso:
+                            status.update(label="Error", state="error", expanded=True)
+                            st.warning("Aún no tienes progreso en ninguna fuente para repasar.")
+                            st.stop()
+                        random.shuffle(docs_repaso)
+                        for d in docs_repaso:
+                            temp_txt = extraer_texto_doc_cached(concurso_main, d)
+                            if temp_txt and temp_txt.strip():
+                                txt = temp_txt
+                                doc_elegido = d
+                                prog_doc = st.session_state.progreso_por_doc.get(f"{concurso_main}/{d}", 0.0)
+                                break
+                    else:
+                        docs_pendientes = [(d, st.session_state.progreso_por_doc.get(f"{concurso_main}/{d}", 0.0)) for d in docs_del_concurso if st.session_state.progreso_por_doc.get(f"{concurso_main}/{d}", 0.0) < 100.0]
+                        if not docs_pendientes:
+                            status.update(label="Error", state="error", expanded=True)
+                            st.warning("Ya has completado todas las fuentes. Reinicia tu progreso para empezar de nuevo.")
+                            st.stop()
+                        
+                        docs_pendientes.sort(key=lambda x: x[1])
+                        candidatos = [d for d in docs_pendientes if d[0] != st.session_state.get("last_global_doc")]
+                        if not candidatos:
+                            candidatos = docs_pendientes
+
+                        for d, p in candidatos:
+                            temp_txt = extraer_texto_doc_cached(concurso_main, d)
+                            if temp_txt and temp_txt.strip():
+                                txt = temp_txt
+                                doc_elegido = d
+                                prog_doc = p
+                                st.session_state["last_global_doc"] = d
+                                break
+                            else:
+                                k = f"{concurso_main}/{d}"
+                                st.session_state.progreso_por_doc[k] = 100.0
+                                st.warning(f"⚠️ El documento '{d}' no contiene texto extraíble. Se ha omitido.")
+                                
+                    if not txt or not doc_elegido:
                         status.update(label="Error", state="error")
-                        st.error("Los documentos están vacíos o no se pudieron leer.")
+                        st.error("No se pudo leer ninguno de los documentos (pueden ser PDFs escaneados).")
                         st.stop()
                         
-                    total_paginas_estimadas = max(1, total_chars / 1800)
-                    porcentaje_estudio = (paginas_estudio / total_paginas_estimadas) * 100.0
+                    largo = len(txt)
+                    chars_per_doc = paginas_estudio * 1800
                     
-                    chunks_list = []
-                    for d, txt in textos_por_doc.items():
-                        largo = len(txt)
-                        if es_repaso:
-                            fin_idx_repaso = int((progreso_actual / 100.0) * largo)
-                            tamaño_chunk = int((porcentaje_estudio / 100.0) * largo)
-                            max_inicio = max(0, fin_idx_repaso - tamaño_chunk)
-                            inicio_idx = random.randint(0, max_inicio)
-                            fin_idx = min(inicio_idx + tamaño_chunk, fin_idx_repaso)
-                        else:
-                            inicio_idx = int((progreso_actual / 100.0) * largo)
-                            fin_idx = int(((progreso_actual + porcentaje_estudio) / 100.0) * largo)
-                            fin_idx = min(fin_idx, largo)
-                            
-                        chunk = txt[inicio_idx:fin_idx]
-                        if chunk.strip():
-                            chunks_list.append(f"\n\n--- DOCUMENTO: {d} ---\n{chunk}")
-                    
-                    random.shuffle(chunks_list)
-                    texto_seccion = "".join(chunks_list)
-                            
-                    doc_original_name = "Varias Fuentes (Modo Global)"
-                    instruccion_extra = "\\n\\nIMPORTANTE: ESTÁS EN MODO DE ESTUDIO GLOBAL. El extracto contiene fragmentos de varios documentos. ES OBLIGATORIO que distribuyas las 5 preguntas entre los distintos documentos proporcionados. NO extraigas todas las preguntas de un solo documento."
                     if es_repaso:
-                        instruccion_extra += " ADEMÁS, ESTE ES UN TEST DE REPASO. Elabora preguntas diferentes a las clásicas para afianzar la memoria."
+                        fin_idx_repaso = int((prog_doc / 100.0) * largo)
+                        tamaño_chunk = min(chars_per_doc, largo)
+                        max_inicio = max(0, fin_idx_repaso - tamaño_chunk)
+                        inicio_idx = random.randint(0, max_inicio)
+                        fin_idx = min(inicio_idx + tamaño_chunk, fin_idx_repaso)
+                    else:
+                        inicio_idx = int((prog_doc / 100.0) * largo)
+                        tamaño_chunk = min(chars_per_doc, largo)
+                        fin_idx = min(inicio_idx + tamaño_chunk, largo)
+                        
+                        doc_a_avanzar = doc_elegido
+                        avance_pct_doc = (tamaño_chunk / largo) * 100.0 if largo > 0 else 100.0
+                        
+                    chunk = txt[inicio_idx:fin_idx]
+                    if chunk.strip():
+                        texto_seccion = f"\n\n--- DOCUMENTO: {doc_elegido} ---\n{chunk}"
+                    else:
+                        texto_seccion = ""
+                    
+                    doc_original_name = doc_elegido
+                    instruccion_extra = ""
+                    if es_repaso:
+                        instruccion_extra = "\\n\\nIMPORTANTE: ESTE ES UN TEST DE REPASO. Elabora preguntas diferentes a las clásicas para afianzar la memoria."
                 else:
                     texto_completo = extraer_texto_doc_cached(concurso_main, doc_main)
                     if texto_completo:
@@ -435,7 +489,11 @@ if concurso_main and doc_main and sesion_main:
                             fin_idx = min(fin_idx, total_chars)
                             instruccion_extra = ""
                             
-                        texto_seccion = texto_completo[inicio_idx:fin_idx]
+                        chunk = texto_completo[inicio_idx:fin_idx]
+                        if chunk.strip():
+                            texto_seccion = f"\n\n--- DOCUMENTO: {doc_main} ---\n{chunk}"
+                        else:
+                            texto_seccion = ""
 
                 if not texto_seccion.strip():
                     status.update(label="Error de progreso", state="error", expanded=True)
@@ -491,8 +549,14 @@ if concurso_main and doc_main and sesion_main:
                         st.session_state.respuestas_usuario = {}
                         
                         if not es_repaso:
-                            nuevo_progreso = min(progreso_actual + porcentaje_estudio, 100.0)
-                            st.session_state.progreso_por_doc[id_progreso] = nuevo_progreso
+                            if doc_main == "📚 Todas las fuentes (Estudio Global)":
+                                if doc_a_avanzar:
+                                    k = f"{concurso_main}/{doc_a_avanzar}"
+                                    prog_doc = st.session_state.progreso_por_doc.get(k, 0.0)
+                                    st.session_state.progreso_por_doc[k] = min(prog_doc + avance_pct_doc, 100.0)
+                            else:
+                                nuevo_progreso = min(progreso_actual + porcentaje_estudio, 100.0)
+                                st.session_state.progreso_por_doc[id_progreso] = nuevo_progreso
                             # Guardar en la nube automáticamente
                             sesiones = obtener_sesiones(concurso_main)
                             if st.session_state.sesion_activa in sesiones:

@@ -1,4 +1,4 @@
 streamlit
 supabase
 google-generativeai
-PyPDF2
+pymupdf
