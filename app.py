@@ -365,7 +365,17 @@ if concurso_main and doc_main and sesion_main:
                 sesiones[st.session_state.sesion_activa]["progreso_por_doc"] = st.session_state.progreso_por_doc
                 guardar_sesiones(concurso_main, sesiones)
             st.rerun()
-            
+
+    with st.expander("📊 Ver progreso por fuente", expanded=False):
+        docs_para_mostrar = docs_globales if doc_main == "📚 Todas las fuentes (Estudio Global)" else listar_documentos(concurso_main)
+        if docs_para_mostrar:
+            for d in docs_para_mostrar:
+                k = f"{concurso_main}/{d}"
+                prog = st.session_state.progreso_por_doc.get(k, 0.0)
+                st.progress(prog / 100.0, text=f"{d}: {prog:.1f}%")
+        else:
+            st.info("Aún no hay fuentes subidas a este concurso.")
+
     paginas_estudio = st.slider("¿Cuántas páginas (aprox.) deseas abarcar en el próximo test?", min_value=1, max_value=30, value=3, step=1)
     
     col_btn1, col_btn2 = st.columns(2)
