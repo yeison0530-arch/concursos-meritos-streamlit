@@ -26,6 +26,13 @@ class TestResult(BaseModel):
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Estudio Concursos", page_icon="📚", layout="wide")
 
+# --- TEMA VISUAL: PIZARRÓN + MADERA ---
+import os
+_css_path = os.path.join(os.path.dirname(__file__), "static", "style.css")
+if os.path.exists(_css_path):
+    with open(_css_path, encoding="utf-8") as _f:
+        st.markdown(f"<style>{_f.read()}</style>", unsafe_allow_html=True)
+
 # --- INICIALIZACIÓN DE SESSION STATE ---
 if 'progreso_por_doc' not in st.session_state:
     st.session_state.progreso_por_doc = {} 
@@ -354,7 +361,14 @@ if concurso_main and doc_main and sesion_main:
     with col_prog1:
         st.progress(progreso_actual / 100.0, text=f"Progreso de lectura acumulado: {progreso_actual:.1f}%")
     with col_prog2:
-        if st.button("🔄 Reiniciar", help="Vuelve el progreso a 0% para este documento"):
+        if st.button("🔄 Reiniciar"):
+            st.session_state.confirmar_reinicio = True
+            st.rerun()
+
+    if st.session_state.get("confirmar_reinicio", False):
+        st.warning("⚠️ ¿Seguro que deseas reiniciar el progreso de estudio? Esta acción pondrá tu avance en 0% y no se puede deshacer.")
+        col_conf1, col_conf2 = st.columns(2)
+        if col_conf1.button("✅ Sí, reiniciar", type="primary"):
             if doc_main == "📚 Todas las fuentes (Estudio Global)":
                 for d in docs_globales:
                     st.session_state.progreso_por_doc[f"{concurso_main}/{d}"] = 0.0
@@ -364,6 +378,10 @@ if concurso_main and doc_main and sesion_main:
             if st.session_state.sesion_activa in sesiones:
                 sesiones[st.session_state.sesion_activa]["progreso_por_doc"] = st.session_state.progreso_por_doc
                 guardar_sesiones(concurso_main, sesiones)
+            st.session_state.confirmar_reinicio = False
+            st.rerun()
+        if col_conf2.button("❌ Cancelar"):
+            st.session_state.confirmar_reinicio = False
             st.rerun()
 
     with st.expander("📊 Ver progreso por fuente", expanded=False):
@@ -379,8 +397,8 @@ if concurso_main and doc_main and sesion_main:
     paginas_estudio = st.slider("¿Cuántas páginas (aprox.) deseas abarcar en el próximo test?", min_value=1, max_value=30, value=3, step=1)
     
     col_btn1, col_btn2 = st.columns(2)
-    generar_avance = col_btn1.button("🚀 Avanzar materia nueva", type="primary", use_container_width=True, help="Avanza tu progreso y genera preguntas del material no visto.")
-    generar_repaso = col_btn2.button("🔄 Repasar lo ya estudiado", use_container_width=True, help="Elige un fragmento al azar de lo que ya has leído para afianzar conocimientos sin avanzar.")
+    generar_avance = col_btn1.button("🚀 Avanzar materia nueva", type="primary", use_container_width=True)
+    generar_repaso = col_btn2.button("🔄 Repasar lo ya estudiado", use_container_width=True)
 
     if generar_avance or generar_repaso:
         es_repaso = generar_repaso
