@@ -43,7 +43,7 @@ if os.path.exists(_img_path):
     <style>
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
         background-image: url("data:image/png;base64,{encoded_string}") !important;
-        background-size: cover !important;
+        background-size: 100% 100% !important;
         background-position: center !important;
         background-attachment: fixed !important;
         background-repeat: no-repeat !important;
