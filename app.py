@@ -192,8 +192,8 @@ with st.sidebar:
     st.header("🤖 Configuración de IA")
     modelo_seleccionado = st.selectbox(
         "Modelo de Inteligencia Artificial:",
-        options=["gemini-flash-latest", "gemini-pro-latest"],
-        format_func=lambda x: "⚡ Flash (Rápido y Económico)" if "flash" in x else "🧠 Pro (Razonamiento Complejo)",
+        options=["gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+        format_func=lambda x: f"🧠 3.1 Pro (Máxima Complejidad)" if "3.1-pro" in x else f"⚡ 3.5 Flash (Avanzado)" if "3.5-flash" in x else f"⚡ 1.5 Flash (Básico)" if "1.5-flash" in x else "🧠 1.5 Pro (Clásico)",
         index=0
     )
     
