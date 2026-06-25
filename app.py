@@ -28,10 +28,29 @@ st.set_page_config(page_title="Estudio Concursos", page_icon="📚", layout="wid
 
 # --- TEMA VISUAL: PIZARRÓN + MADERA ---
 import os
+import base64
 _css_path = os.path.join(os.path.dirname(__file__), "static", "style.css")
 if os.path.exists(_css_path):
     with open(_css_path, encoding="utf-8") as _f:
         st.markdown(f"<style>{_f.read()}</style>", unsafe_allow_html=True)
+
+# Inyectar imagen de fondo
+_img_path = os.path.join(os.path.dirname(__file__), "static", "pizarron.png")
+if os.path.exists(_img_path):
+    with open(_img_path, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode()
+    bg_css = f"""
+    <style>
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
+        background-image: url("data:image/png;base64,{encoded_string}") !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: fixed !important;
+        background-repeat: no-repeat !important;
+    }}
+    </style>
+    """
+    st.markdown(bg_css, unsafe_allow_html=True)
 
 # --- INICIALIZACIÓN DE SESSION STATE ---
 if 'progreso_por_doc' not in st.session_state:
