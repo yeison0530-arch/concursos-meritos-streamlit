@@ -22,7 +22,7 @@ class Pregunta(BaseModel):
     refran: str = Field(description="Una rima corta, graciosa y coloquial (máximo dos líneas) que resuma la regla jurídica de fondo. Debe tener una métrica muy marcada y sonora (idealmente con acentos rítmicos fuertes en las sílabas 1, 4, 7 y 10) para que funcione como una regla mnemotécnica cómica y fácil de recordar en un examen.")
 
 class TestResult(BaseModel):
-    preguntas: list[Pregunta] = Field(description="Lista con exactamente 5 preguntas generadas")
+    preguntas: list[Pregunta] = Field(description="Lista con exactamente 3 preguntas generadas")
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Estudio Concursos", page_icon="📚", layout="wide")
@@ -557,9 +557,9 @@ if concurso_main and doc_main and sesion_main:
                     --- FIN DEL EXTRACTO ---
                     
                     INSTRUCCIONES ESTRICTAS DE FORMATO:{instruccion_extra}
-                    1. Genera EXACTAMENTE 5 preguntas basadas en este texto.
+                    1. Genera EXACTAMENTE 3 preguntas basadas en este texto.
                     2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'enunciado', 'justificacion', 'mapa_mental' y 'refran'.
-                    3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta. DEBES citar la fuente con precisión: si el texto hace referencia a leyes, normas, decretos o jurisprudencia, DEBES mencionar su nombre completo sin recortarlo (incluyendo número, año, artículo, inciso, radicado, fecha, sala o ponente). También DEBES hacer referencia explícita al nombre del documento al que pertenece el fragmento (indicado como "--- DOCUMENTO: nombre ---").
+                    3. La "justificacion" debe ser clara, pedagógica, pero CONCISA (máximo 3 párrafos cortos). Explica por qué la opción es correcta. DEBES citar la fuente con precisión: si el texto hace referencia a leyes, normas, decretos o jurisprudencia, DEBES mencionar su nombre (incluyendo número, artículo, inciso, radicado). También DEBES hacer referencia explícita al nombre del documento al que pertenece el fragmento (indicado como "--- DOCUMENTO: nombre ---").
                         4. El "mapa_mental" debe ser un esquema conceptual horizontal corto y directo usando flechas. (Ejemplo: Concepto -> Propiedad -> Detalle).
                         5. El "refran" debe ser una rima corta, graciosa y coloquial (máximo dos líneas) que resuma la regla jurídica de fondo. Debe tener una métrica muy marcada y sonora (idealmente con acentos rítmicos fuertes en las sílabas 1, 4, 7 y 10) para que funcione como una regla mnemotécnica cómica y fácil de recordar en un examen.
                         6. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido (incluyendo la justificación) debe ser 100% PARAFRASEADO usando tus propias palabras para evitar filtros de Copyright. Menciona los números de artículos, el nombre de las leyes y radicados, pero NUNCA copies el texto legal ni los extractos normativos de forma literal.
