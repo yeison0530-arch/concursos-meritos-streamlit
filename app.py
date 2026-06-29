@@ -14,15 +14,18 @@ from pydantic import BaseModel, Field
 # --- TIPOS DE DATOS PARA GEMINI ---
 class Pregunta(BaseModel):
     id: int = Field(description="Número de la pregunta")
-    enunciado: str = Field(description="El texto principal de la pregunta a responder")
-    opciones: list[str] = Field(description="Lista de 4 posibles opciones de respuesta")
-    correcta: int = Field(description="Índice (0 a 3) de la respuesta correcta")
+    tipo: str = Field(default="unica_respuesta", description="Tipo de pregunta ('unica_respuesta', 'multiple_respuesta', 'analisis_relaciones' o 'analisis_postulados')")
+    enunciado: str = Field(description="El texto principal de la pregunta a responder o la Afirmación principal.")
+    afirmaciones: list[str] = Field(default=[], description="Las 4 alternativas numeradas para preguntas de múltiple respuesta.")
+    razon: str = Field(default="", description="La razón (después de 'porque') para preguntas de análisis de relaciones.")
+    opciones: list[str] = Field(description="Lista de posibles opciones de respuesta")
+    correcta: int = Field(description="Índice de la respuesta correcta")
     justificacion: str = Field(description="Justificación detallada que cite expresamente el artículo, inciso, numeral, literal, o datos de jurisprudencia (radicado, fecha, sala, magistrado ponente).")
     mapa_mental: str = Field(description="Esquema conceptual horizontal usando flechas (->)")
     refran: str = Field(description="Una rima corta, graciosa y coloquial (máximo dos líneas) que resuma la regla jurídica de fondo. Debe tener una métrica muy marcada y sonora (idealmente con acentos rítmicos fuertes en las sílabas 1, 4, 7 y 10) para que funcione como una regla mnemotécnica cómica y fácil de recordar en un examen.")
 
 class TestResult(BaseModel):
-    preguntas: list[Pregunta] = Field(description="Lista con exactamente 4 preguntas generadas")
+    preguntas: list[Pregunta] = Field(description="Lista de preguntas generadas")
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Estudio Concursos", page_icon="📚", layout="wide")
@@ -416,6 +419,14 @@ if concurso_main and doc_main and sesion_main:
 
     paginas_estudio = st.slider("¿Cuántas páginas (aprox.) deseas abarcar en el próximo test?", min_value=1, max_value=30, value=3, step=1)
     
+    st.write("**Modalidad de las preguntas:**")
+    tipo_preguntas = st.radio(
+        "Modalidad",
+        ["Mixto (Aleatorio)", "Selección Múltiple con Única Respuesta", "Selección Múltiple con Múltiple Respuesta", "Análisis de Relaciones", "Análisis de Postulados"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
     col_btn1, col_btn2 = st.columns(2)
     generar_avance = col_btn1.button("🚀 Avanzar materia nueva", type="primary", use_container_width=True)
     generar_repaso = col_btn2.button("🔄 Repasar lo ya estudiado", use_container_width=True)
@@ -548,6 +559,134 @@ if concurso_main and doc_main and sesion_main:
                     st.warning("Ya has completado este documento o la sección no contiene texto. Reinicia tu progreso para empezar de nuevo.")
                 else:
                     st.write("🤖 Analizando el texto y estructurando preguntas con IA...")
+                    
+                    num_preguntas = 3 if tipo_preguntas in ["Análisis de Relaciones", "Análisis de Postulados", "Mixto (Aleatorio)"] else 4
+                    
+                    if tipo_preguntas == "Selección Múltiple con Única Respuesta":
+                        instruccion_formato = """
+                        7. Devuelve ÚNICAMENTE un JSON válido con la siguiente estructura exacta:
+                        {
+                          "preguntas": [
+                            {
+                              "id": 1,
+                              "tipo": "unica_respuesta",
+                              "enunciado": "¿Pregunta de ejemplo?",
+                              "afirmaciones": [],
+                              "razon": "",
+                              "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+                              "correcta": 0,
+                              "justificacion": "Explicación detallada...",
+                              "mapa_mental": "A -> B -> C",
+                              "refran": "Si la ley es muy pesada, con la rima es pan comido..."
+                            }
+                          ]
+                        }"""
+                    elif tipo_preguntas == "Selección Múltiple con Múltiple Respuesta":
+                        instruccion_formato = """
+                        7. Devuelve ÚNICAMENTE un JSON válido con la siguiente estructura exacta:
+                        {
+                          "preguntas": [
+                            {
+                              "id": 1,
+                              "tipo": "multiple_respuesta",
+                              "enunciado": "Contexto de la pregunta...",
+                              "afirmaciones": ["1. Primera afirmación", "2. Segunda afirmación", "3. Tercera afirmación", "4. Cuarta afirmación"],
+                              "razon": "",
+                              "opciones": ["A (1 y 2 son correctas)", "B (2 y 3 son correctas)", "C (3 y 4 son correctas)", "D (2 y 4 son correctas)", "E (1 y 3 son correctas)"],
+                              "correcta": 2, 
+                              "justificacion": "Explicación detallada...",
+                              "mapa_mental": "A -> B -> C",
+                              "refran": "Si la ley es muy pesada, con la rima es pan comido..."
+                            }
+                          ]
+                        }
+                        IMPORTANTE: En este tipo de pregunta, debes formular 4 afirmaciones y la respuesta correcta debe ser una combinación válida según las opciones de la A a la E."""
+                    elif tipo_preguntas == "Análisis de Relaciones":
+                        instruccion_formato = """
+                        7. Devuelve ÚNICAMENTE un JSON válido con la siguiente estructura exacta:
+                        {
+                          "preguntas": [
+                            {
+                              "id": 1,
+                              "tipo": "analisis_relaciones",
+                              "enunciado": "[Escribe aquí la Afirmación a evaluar. DEBE ser extensa, estructurada y profunda, de un párrafo completo (ej. 4-6 líneas) que requiera análisis interpretativo riguroso.]",
+                              "afirmaciones": [],
+                              "razon": "[Escribe aquí la Razón. DEBE ser extensa, estructurada y profunda, de un párrafo completo (ej. 4-6 líneas) que requiera análisis interpretativo riguroso.]",
+                              "opciones": ["A (Afirmación y Razón VERDADERAS, y Razón es explicación correcta)", "B (Afirmación y Razón VERDADERAS, pero Razón NO es explicación correcta)", "C (Afirmación VERDADERA, Razón FALSA)", "D (Afirmación FALSA, Razón VERDADERA)", "E (Afirmación y Razón FALSAS)"],
+                              "correcta": 1, 
+                              "justificacion": "Explicación detallada...",
+                              "mapa_mental": "A -> B -> C",
+                              "refran": "Si la ley es muy pesada, con la rima es pan comido..."
+                            }
+                          ]
+                        }
+                        IMPORTANTE: El campo 'enunciado' (Afirmación) y la 'razon' deben ser extensos, detallados y complejos simulando un caso de estudio real o un postulado jurídico elaborado."""
+                    elif tipo_preguntas == "Análisis de Postulados":
+                        instruccion_formato = """
+                        7. Devuelve ÚNICAMENTE un JSON válido con la siguiente estructura exacta:
+                        {
+                          "preguntas": [
+                            {
+                              "id": 1,
+                              "tipo": "analisis_postulados",
+                              "enunciado": "[Escribe aquí la TESIS. DEBE ser extensa, estructurada y profunda, simulando un caso complejo de la vida real o un amplio postulado teórico de 5-8 líneas.]",
+                              "afirmaciones": ["[Escribe aquí el POSTULADO I. Un párrafo moderado que podría o no deducirse de la tesis.]", "[Escribe aquí el POSTULADO II. Un párrafo moderado que podría o no deducirse de la tesis.]"],
+                              "razon": "",
+                              "opciones": ["A (Se deducen los postulados I y II)", "B (Solo se deduce el postulado I)", "C (Solo se deduce el postulado II)", "D (No se deduce ninguno)"],
+                              "correcta": 0, 
+                              "justificacion": "Explicación detallada...",
+                              "mapa_mental": "A -> B -> C",
+                              "refran": "Si la ley es muy pesada, con la rima es pan comido..."
+                            }
+                          ]
+                        }
+                        IMPORTANTE: En 'analisis_postulados', el campo 'enunciado' (TESIS) debe ser extenso (mínimo 5-8 líneas). El campo 'afirmaciones' debe contener exactamente DOS elementos correspondientes a los postulados I y II. Las opciones de respuesta deben ser exactamente las 4 descritas."""
+                    else:
+                        instruccion_formato = f"""
+                        7. Devuelve ÚNICAMENTE un JSON válido que mezcle preguntas de los CUATRO tipos siguientes (asegúrate de incluir exactamente {num_preguntas} preguntas en total, priorizando incluir los de análisis).
+                        ESTRUCTURA EXACTA ESPERADA:
+                        {{
+                          "preguntas": [
+                            {{
+                              "id": 1,
+                              "tipo": "unica_respuesta",
+                              "enunciado": "¿Pregunta de ejemplo?",
+                              "afirmaciones": [],
+                              "razon": "",
+                              "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+                              "correcta": 0,
+                              "justificacion": "...",
+                              "mapa_mental": "...",
+                              "refran": "..."
+                            }},
+                            {{
+                              "id": 2,
+                              "tipo": "analisis_relaciones",
+                              "enunciado": "[Afirmación extensa y profunda...]",
+                              "afirmaciones": [],
+                              "razon": "[Razón extensa y profunda...]",
+                              "opciones": ["A (Ambas V, Razón explica Afirmación)", "B (Ambas V, Razón NO explica)", "C (Afirmación V, Razón F)", "D (Afirmación F, Razón V)", "E (Ambas F)"],
+                              "correcta": 1, 
+                              "justificacion": "...",
+                              "mapa_mental": "...",
+                              "refran": "..."
+                            }},
+                            {{
+                              "id": 3,
+                              "tipo": "analisis_postulados",
+                              "enunciado": "[Tesis extensa y profunda...]",
+                              "afirmaciones": ["[Postulado I]", "[Postulado II]"],
+                              "razon": "",
+                              "opciones": ["A (Se deducen I y II)", "B (Solo se deduce I)", "C (Solo se deduce II)", "D (No se deduce ninguno)"],
+                              "correcta": 0, 
+                              "justificacion": "...",
+                              "mapa_mental": "...",
+                              "refran": "..."
+                            }}
+                          ]
+                        }}
+                        IMPORTANTE: Respeta las estructuras y exigencias de longitud (enunciados largos para análisis de relaciones y de postulados). En analisis_postulados usa exactamente 4 opciones."""
+
                     prompt = f"""
                     Actúa como un experto en la creación de exámenes para concursos de méritos públicos.
                     A continuación te proporciono un extracto del documento o documentos a estudiar (si hay varios, cada uno estará separado e identificado):
@@ -557,26 +696,14 @@ if concurso_main and doc_main and sesion_main:
                     --- FIN DEL EXTRACTO ---
                     
                     INSTRUCCIONES ESTRICTAS DE FORMATO:{instruccion_extra}
-                    1. Genera EXACTAMENTE 4 preguntas basadas en este texto.
-                    2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'enunciado', 'justificacion', 'mapa_mental' y 'refran'.
+                    1. Genera EXACTAMENTE {num_preguntas} preguntas basadas en este texto.
+                    2. REGLA OBLIGATORIA: Cada pregunta DEBE tener las claves 'id', 'tipo', 'enunciado', 'afirmaciones', 'opciones', 'correcta', 'justificacion', 'mapa_mental' y 'refran'.
                     3. La "justificacion" debe ser detallada y pedagógica. Explica ampliamente por qué la opción es correcta. DEBES citar la fuente con precisión: si el texto hace referencia a leyes, normas, decretos o jurisprudencia, DEBES mencionar su nombre completo sin recortarlo (incluyendo número, año, artículo, inciso, radicado, fecha, sala o ponente). También DEBES hacer referencia explícita al nombre del documento al que pertenece el fragmento (indicado como "--- DOCUMENTO: nombre ---").
                         4. El "mapa_mental" debe ser un esquema conceptual horizontal corto y directo usando flechas. (Ejemplo: Concepto -> Propiedad -> Detalle).
                         5. El "refran" debe ser una rima corta, graciosa y coloquial (máximo dos líneas) que resuma la regla jurídica de fondo. Debe tener una métrica muy marcada y sonora (idealmente con acentos rítmicos fuertes en las sílabas 1, 4, 7 y 10) para que funcione como una regla mnemotécnica cómica y fácil de recordar en un examen.
                         6. REGLA DE SEGURIDAD CRÍTICA: Todo el contenido (incluyendo la justificación) debe ser 100% PARAFRASEADO usando tus propias palabras para evitar filtros de Copyright. Menciona los números de artículos, el nombre de las leyes y radicados, pero NUNCA copies el texto legal ni los extractos normativos de forma literal.
-                        7. Devuelve ÚNICAMENTE un JSON válido con la siguiente estructura exacta:
-                        {{
-                          "preguntas": [
-                            {{
-                              "id": 1,
-                              "enunciado": "¿Pregunta de ejemplo?",
-                              "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
-                              "correcta": 0,
-                              "justificacion": "Explicación detallada...",
-                              "mapa_mental": "A -> B -> C",
-                              "refran": "Si la ley es muy pesada, con la rima es pan comido..."
-                            }}
-                          ]
-                        }}
+                        7. REGLA CRÍTICA PARA EL JSON: Asegúrate de escapar correctamente cualquier comilla doble que uses dentro de los textos (usando \\\") y evita los saltos de línea internos sin escapar (\\n) para NO ROMPER la sintaxis del JSON.
+                        {instruccion_formato}
                         """
                         
                     try:
@@ -626,14 +753,41 @@ if concurso_main and doc_main and sesion_main:
         
         for p in preguntas:
             p_id = p.get('id', '?')
+            tipo = p.get('tipo', 'unica_respuesta')
             enunciado = p.get('enunciado', p.get('pregunta', 'Error: La IA no estructuró bien la pregunta.'))
+            afirmaciones = p.get('afirmaciones', [])
+            razon = p.get('razon', '')
             opciones = p.get('opciones', [])
             correcta_idx = p.get('correcta', 0)
             justificacion = p.get('justificacion', 'Sin justificación.')
             mapa = p.get('mapa_mental', '')
             refran = p.get('refran', '')
             
-            st.markdown(f"**Pregunta {p_id}:** {enunciado}")
+            if tipo == "analisis_relaciones":
+                st.markdown(f"**Pregunta {p_id}:** _Analice la siguiente afirmación y la razón que la justifica, determinando la relación entre ambas:_")
+                st.markdown(f"{enunciado}")
+            elif tipo == "analisis_postulados":
+                st.markdown(f"**Pregunta {p_id} (Análisis de Postulados):**")
+                st.markdown("**TESIS:**")
+                st.markdown(f"{enunciado}")
+            else:
+                st.markdown(f"**Pregunta {p_id}:** {enunciado}")
+            
+            if tipo == "analisis_relaciones" and razon:
+                st.markdown("<div style='text-align: center; font-weight: bold; font-style: italic; margin-top: 10px; margin-bottom: 10px;'>porque</div>", unsafe_allow_html=True)
+                st.markdown(f"{razon}")
+            elif tipo == "analisis_postulados" and afirmaciones:
+                st.markdown("<div style='text-align: center; font-weight: bold; font-style: italic; margin-top: 10px; margin-bottom: 10px;'>Por consiguiente</div>", unsafe_allow_html=True)
+                for idx, postulado in enumerate(afirmaciones, 1):
+                    romano = "I" if idx == 1 else ("II" if idx == 2 else str(idx))
+                    st.markdown(f"**POSTULADO {romano}:**")
+                    st.markdown(f"_{postulado}_")
+            elif tipo == "multiple_respuesta" and afirmaciones:
+                st.markdown("<br>", unsafe_allow_html=True)
+                for af in afirmaciones:
+                    st.markdown(f"_{af}_")
+                st.markdown("<br>", unsafe_allow_html=True)
+                
             respondido = str(p_id) in st.session_state.respuestas_usuario
             
             for i, opcion in enumerate(opciones):
